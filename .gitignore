@@ -1,0 +1,25 @@
+# ข้อมูลจริงจากระบบเดิม (ข้อมูลส่วนบุคคล) ห้าม commit เด็ดขาด
+ระบบวันลา*/
+signature/
+ใบรับรองแพทย์*/
+pdf/
+preview/
+*.xlsx
+*.xls
+*.pptx
+*.pdf
+*.png.real
+tools/migrate/out/
+
+# secret / ค่าเฉพาะเครื่อง
+.env
+.env.*
+*.pem
+*.key
+supabase/.temp/
+supabase/.branches/
+
+# เครื่องมือ
+node_modules/
+.DS_Store
+Thumbs.db
