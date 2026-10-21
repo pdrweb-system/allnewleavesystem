@@ -23,15 +23,19 @@ class HttpError extends Error {
 }
 
 // รหัสผ่านชั่วคราว 10 ตัว (ตัดตัวที่สับสนง่าย 0/o 1/l/i) เช่น k7m3p-x9q2r
+// มีทั้งตัวอักษรและตัวเลขเสมอ ให้ผ่านเงื่อนไข "Letters and digits" ของ Auth (สุ่มใหม่ราว 5% ของครั้ง)
 function tempPassword(): string {
   const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
-  const out: string[] = [];
   const buf = new Uint8Array(1);
-  while (out.length < 10) {
-    crypto.getRandomValues(buf);
-    if (buf[0] < 248) out.push(alphabet[buf[0] % alphabet.length]); // 248 = 8 × 31 ไม่เอนเอียง
+  for (;;) {
+    const out: string[] = [];
+    while (out.length < 10) {
+      crypto.getRandomValues(buf);
+      if (buf[0] < 248) out.push(alphabet[buf[0] % alphabet.length]); // 248 = 8 × 31 ไม่เอนเอียง
+    }
+    const pw = out.slice(0, 5).join('') + '-' + out.slice(5).join('');
+    if (/[a-z]/.test(pw) && /[0-9]/.test(pw)) return pw;
   }
-  return out.slice(0, 5).join('') + '-' + out.slice(5).join('');
 }
 
 function text(value: unknown, field: string, max = 120): string {

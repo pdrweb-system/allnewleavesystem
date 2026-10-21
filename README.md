@@ -28,7 +28,8 @@
 ### 1. ตั้งค่าล็อกอินใน Supabase Dashboard
 โปรเจกต์ `leave-system` → **Authentication → Sign In / Providers**
 - ปิด **Allow new users to sign up** (บัญชีสร้างโดยแอดมินเท่านั้น)
-- Email: ปิด **Confirm email**, ตั้ง **Minimum password length = 8**
+- Email: ปิด **Confirm email**, ตั้ง **Minimum password length = 8** และ **Password Requirements = Letters and digits**
+  (ให้เซิร์ฟเวอร์ตรวจกติกาเดียวกับหน้าเปลี่ยนรหัสผ่านด้วย ไม่ใช่แค่หน้าเว็บ)
 
 > ระหว่างที่ยังไม่ปิด signup คนนอกสมัครบัญชีได้แต่จะไม่เห็นข้อมูลใดเลย (ไม่มี profile = RLS ปฏิเสธทั้งหมด
 > มีชุดทดสอบยืนยัน) แต่ควรปิดทันที
@@ -154,7 +155,7 @@ python3 legacy_import.py "ระบบข้อมูล.xlsx" --out out --plan 
 
 | รายการ | ผล |
 |---|---|
-| ทุกตารางเปิด RLS | ✅ ไม่มี policy = ปฏิเสธ · Security Advisor เหลือคำเตือน 4 รายการที่ตั้งใจ (ดูด้านล่าง) |
+| ทุกตารางเปิด RLS | ✅ ไม่มี policy = ปฏิเสธ · Security Advisor เหลือคำเตือน 4 รายการที่ตั้งใจ + 1 รายการที่แพ็กเกจ Free เปิดไม่ได้ (ดูด้านล่าง) |
 | หน้าเว็บเขียน leaves / approvals / leave_days ตรงไม่ได้ | ✅ ไม่มีสิทธิ์ insert/update/delete — เขียนผ่าน RPC เท่านั้น (ชุดทดสอบ SQL) |
 | ครู A อ่านใบลา/ไฟล์ของครู B ไม่ได้ · ครูอนุมัติตัวเองไม่ได้ · ข้ามขั้นไม่ได้ | ✅ ชุดทดสอบ SQL + ทดสอบผ่านเบราว์เซอร์ |
 | service role / secret key อยู่เฉพาะใน Edge Function | ✅ repo มีแค่ publishable key (สาธารณะได้) |
@@ -171,6 +172,10 @@ python3 legacy_import.py "ระบบข้อมูล.xlsx" --out out --plan 
 `submit_leave`, `decide_leave`, `cancel_leave`, `resend_line_notification` — ตั้งใจ: 4 ฟังก์ชันนี้ต้องเขียนตารางที่หน้าเว็บ
 ไม่มีสิทธิ์เขียน จึงต้องเป็น `SECURITY DEFINER` ทุกตัวตรวจผู้เรียก (ล็อกอิน · บัญชีเปิด · เปลี่ยนรหัสแล้ว · บทบาท/เจ้าของ) ก่อนทำงาน
 และมีชุดทดสอบครอบคลุม RPC ที่อ่านอย่างเดียวเป็น `SECURITY INVOKER` ให้ RLS กรองซ้ำ
+
+**คำเตือน Leaked Password Protection** (ตรวจรหัสผ่านกับรายการรหัสที่เคยรั่วของ HaveIBeenPwned) เปิดได้เฉพาะแพ็กเกจ Pro ขึ้นไป
+ระหว่างใช้ Free ระบบบังคับรหัสอย่างน้อย 8 ตัว มีทั้งตัวอักษรและตัวเลข (ข้อ 1) ห้ามใช้ชื่อผู้ใช้ และต้องเปลี่ยนรหัสชั่วคราวก่อนใช้งาน ·
+ถ้าอัปเกรดเป็น Pro ให้เปิดที่หน้าเดียวกับข้อ 1
 
 ---
 
