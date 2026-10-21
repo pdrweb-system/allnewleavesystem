@@ -1,0 +1,35 @@
+# กันโปรเจกต์ Supabase แพ็กเกจ Free ถูก pause เมื่อไม่มีการใช้งาน 7 วัน (เช่น ช่วงปิดเทอม)
+# เรียก RPC keepalive (ไม่แตะข้อมูลใด ๆ) สัปดาห์ละ 2 ครั้ง ถ้าย้ายไปแพ็กเกจ Pro ลบไฟล์นี้ได้
+# หมายเหตุ: GitHub รัน schedule เฉพาะบน branch หลัก (default branch) ของ repo เท่านั้น
+name: keep-alive
+
+on:
+  schedule:
+    - cron: '23 1 * * 1,4' # จันทร์และพฤหัสบดี 08:23 น. เวลาไทย
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # ใช้เปิด workflow นี้ซ้ำ กัน GitHub ปิด schedule เองเมื่อ repo ไม่มีความเคลื่อนไหว 60 วัน
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Ping Supabase
+        run: |
+          set -euo pipefail
+          # อ่าน URL และ publishable key (ค่าสาธารณะ) จาก js/config.js ของ repo
+          config="$(gh api "repos/${GITHUB_REPOSITORY}/contents/js/config.js?ref=${GITHUB_SHA}" --jq .content | base64 -d)"
+          url="$(printf '%s' "$config" | sed -n "s/^export const SUPABASE_URL = '\(.*\)';$/\1/p")"
+          key="$(printf '%s' "$config" | sed -n "s/^export const SUPABASE_KEY = '\(.*\)';$/\1/p")"
+          code="$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 20 \
+            -X POST "${url}/rest/v1/rpc/keepalive" -H "apikey: ${key}" -H 'Content-Type: application/json' -d '{}')"
+          echo "keepalive HTTP ${code}"
+          test "${code}" = 200
+
+      - name: Keep this schedule enabled
+        run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/keepalive.yml/enable"
