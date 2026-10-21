@@ -154,7 +154,7 @@ async function onRoute(path) {
     if (typeof done === 'function') cleanup = done;
     app.focus({ preventScroll: true });
   } catch (e) {
-    console.error(e);
+    if (!e?.code) console.error(e); // error จากเซิร์ฟเวอร์ (มี code) แสดงในหน้าอยู่แล้ว
     if (seq === renderSeq) mount(container, errorBox(e));
   }
 }

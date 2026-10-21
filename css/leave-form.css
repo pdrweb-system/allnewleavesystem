@@ -4,7 +4,7 @@
 .a4 {
   width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000;
   padding: 14mm 16mm 12mm 20mm; box-shadow: 0 2px 12px rgba(0, 0, 0, .18);
-  font-family: 'Sarabun', 'TH Sarabun New', sans-serif; font-size: 11.5pt; line-height: 1.62;
+  font-family: 'Sarabun', 'TH Sarabun New', sans-serif; font-size: 12pt; line-height: 1.7;
 }
 .a4 p { margin: 0; }
 .f-title { text-align: center; font-size: 15pt; font-weight: 700; margin: 0 0 3mm; }
@@ -23,12 +23,13 @@
 .fill.w-name { min-width: 62mm; }
 .fill.w-pos { min-width: 50mm; }
 .fill.w-reason { min-width: 150mm; text-align: left; }
-.fill.w-date { min-width: 34mm; }
+.fill.w-date { min-width: 30mm; }
 .fill.w-num { min-width: 12mm; }
-.fill.w-type { min-width: 28mm; }
+.fill.w-type { min-width: 22mm; }
 .fill.w-contact { min-width: 108mm; text-align: left; }
 .fill.w-full { min-width: 70mm; width: 100%; text-align: left; }
 .tick { display: inline-block; margin-right: 6mm; white-space: nowrap; }
+.nowrap { white-space: nowrap; }
 
 .f-applicant { margin: 3mm 0 0 auto; width: 92mm; text-align: center; }
 .f-regards { margin-bottom: 1mm; }
@@ -38,16 +39,19 @@
 .sig { max-height: 15mm; max-width: 56mm; object-fit: contain; margin-bottom: -2mm; }
 .sig-missing { font-size: 9pt; color: #888; }
 .sign-name { margin-top: 1mm; }
-.sign-title, .sign-role { font-size: 10.5pt; }
+.sign-title { font-size: 10.5pt; }
+.sign-role { text-align: center; font-weight: 600; }
 .sign-date { font-size: 10.5pt; }
 
-.f-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: 4mm; align-items: start; }
+.f-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: 6mm; align-items: start; }
 .f-col h2 { font-size: 11.5pt; font-weight: 700; margin: 0 0 1.5mm; }
 .f-col h2 small { font-weight: 400; }
-.f-box { border: 1px solid #000; padding: 2.5mm 3mm; margin-bottom: 3mm; }
+.f-box { border: 1px solid #000; padding: 3mm 3.5mm; margin-bottom: 4mm; }
 .f-col > .f-box:last-child { margin-bottom: 0; }
-.f-stats { width: 100%; border-collapse: collapse; margin-bottom: 3mm; font-size: 10.5pt; caption-side: bottom; }
-.f-stats th, .f-stats td { border: 1px solid #000; padding: .6mm 1.5mm; text-align: center; }
+.f-stats { width: 100%; border-collapse: collapse; margin-bottom: 3mm; font-size: 10.5pt; caption-side: bottom; table-layout: fixed; }
+.f-stats col.c-type { width: 37%; }
+.f-stats th, .f-stats td { border: 1px solid #000; padding: .8mm 1.2mm; text-align: center; }
+.f-stats th { font-weight: 600; line-height: 1.3; }
 .f-stats td:first-child { text-align: left; }
 .f-stats caption { font-size: 9pt; text-align: right; }
 .f-note { font-size: 10pt; color: #333; }

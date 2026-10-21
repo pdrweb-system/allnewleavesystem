@@ -79,12 +79,12 @@ export default async function leaveForm(el, { id }) {
     h('p', {}, 'ตั้งแต่วันที่ ', dots(`${from.d} ${from.m} ${from.y}`, 'w-date'),
       ' ถึงวันที่ ', dots(`${to.d} ${to.m} ${to.y}`, 'w-date'),
       ' มีกำหนด ', dots(days, 'w-num'), ' วัน'),
-    last
-      ? h('p', {}, 'ข้าพเจ้าได้ลา ', dots(last.label, 'w-type'), ' ครั้งสุดท้ายตั้งแต่วันที่ ',
-        dots(thDate(last.from_date), 'w-date'), ' ถึงวันที่ ', dots(thDate(last.to_date), 'w-date'),
-        ' มีกำหนด ', dots(last.half_day ? '0.5' : fmtDays(last.total_days), 'w-num'), ' วัน')
-      : h('p', {}, 'ข้าพเจ้าได้ลา ', dots('-', 'w-type'), ' ครั้งสุดท้ายตั้งแต่วันที่ ', dots('-', 'w-date'),
-        ' ถึงวันที่ ', dots('-', 'w-date'), ' มีกำหนด ', dots('-', 'w-num'), ' วัน'),
+    h('p', {},
+      h('span', { class: 'nowrap' }, 'ข้าพเจ้าได้ลา ', dots(last?.label ?? '-', 'w-type')),
+      ' ', h('span', { class: 'nowrap' }, 'ครั้งสุดท้ายตั้งแต่วันที่ ', dots(last ? thDate(last.from_date) : '-', 'w-date')),
+      ' ', h('span', { class: 'nowrap' }, 'ถึงวันที่ ', dots(last ? thDate(last.to_date) : '-', 'w-date')),
+      ' ', h('span', { class: 'nowrap' }, 'มีกำหนด ',
+        dots(last ? (last.half_day ? '0.5' : fmtDays(last.total_days)) : '-', 'w-num'), ' วัน')),
     h('p', {}, 'ในระหว่างลาจะติดต่อข้าพเจ้าได้ที่ ', dots(leave.contact_phone, 'w-contact')));
 
   const applicant = h('div', { class: 'f-applicant' },
@@ -93,6 +93,7 @@ export default async function leaveForm(el, { id }) {
 
   // ---------- ส่วนล่างซ้าย: สถิติ + ผู้ตรวจสอบ ----------
   const statTable = h('table', { class: 'f-stats' },
+    h('colgroup', {}, h('col', { class: 'c-type' }), h('col'), h('col'), h('col')),
     h('thead', {}, h('tr', {},
       h('th', {}, 'ประเภทการลา'), h('th', {}, 'ลามาแล้ว'), h('th', {}, 'ลาครั้งนี้'), h('th', {}, 'รวมเป็น'))),
     h('tbody', {}, FORM_ORDER.map((code) => {
@@ -111,11 +112,8 @@ export default async function leaveForm(el, { id }) {
       ? h('p', { class: 'f-note' }, 'ผู้ลาเป็นหัวหน้าฝ่ายบริหารงานบุคคล (ไม่ต้องผ่านขั้นตรวจสอบ)')
       : [
         hr?.decision === 'reject' ? h('p', { class: 'f-reject' }, `ไม่ผ่านการตรวจสอบ: ${hr.reason}`) : null,
-        signBlock({
-          img: hrSig, name: hr?.name, title: s.hr_title ?? 'หัวหน้าฝ่ายบริหารงานบุคคล',
-          date: decidedDate(hr), label: '(ลงชื่อ)',
-        }),
         h('div', { class: 'sign-role' }, 'ผู้ตรวจสอบ'),
+        signBlock({ img: hrSig, name: hr?.name, title: s.hr_title ?? 'หัวหน้าฝ่ายบริหารงานบุคคล', date: decidedDate(hr) }),
       ]);
 
   const left = h('div', { class: 'f-col' },

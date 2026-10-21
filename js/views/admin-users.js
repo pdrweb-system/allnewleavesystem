@@ -195,8 +195,10 @@ async function signatureDialog(u, onDone) {
 }
 
 export default async function adminUsersView(el, _params, { profile }) {
+  let first = true;
   const load = async () => {
-    mount(el, loading());
+    if (first) mount(el, loading());
+    first = false;
     const [users, audit] = await Promise.all([
       query(sb.from('profiles').select(COLUMNS)),
       query(sb.from('admin_audit').select('id, actor, action, target, detail, created_at')

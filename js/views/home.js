@@ -45,7 +45,9 @@ export default async function home(el, _params, { profile }) {
   mount(el,
     h('section', { class: 'hero' },
       h('div', {},
-        h('p', { class: 'muted small' }, `${ROLE_LABEL[profile.role]}${profile.is_admin ? ' · แอดมิน' : ''}`),
+        profile.role !== 'teacher' || profile.is_admin
+          ? h('p', { class: 'muted small' }, `${ROLE_LABEL[profile.role]}${profile.is_admin ? ' · แอดมิน' : ''}`)
+          : null,
         h('h1', {}, `สวัสดี ${profile.full_name}`),
         h('p', { class: 'muted' }, profile.position)),
       canFile(profile) ? h('a', { class: 'btn primary big', href: '#/leave/new' }, '+ ยื่นใบลา') : null),

@@ -117,6 +117,7 @@ img { max-width: 100%; }
 .btn.small { min-height: 34px; padding: 4px 10px; font-size: .9rem; }
 .btn.big { min-height: 52px; font-size: 1.08rem; padding: 10px 22px; }
 .btn.block { width: 100%; }
+.row .btn { white-space: nowrap; }
 
 /* ---------- ฟอร์ม ---------- */
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -166,9 +167,10 @@ textarea { resize: vertical; }
 .toast {
   position: fixed; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translate(-50%, 140%);
   background: #1c2a29; color: #fff; padding: 12px 18px; border-radius: 12px; max-width: min(92vw, 520px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, .25); transition: transform .25s ease; z-index: 50;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .25); transition: transform .25s ease, visibility .25s; z-index: 50;
+  visibility: hidden;
 }
-.toast.show { transform: translate(-50%, 0); }
+.toast.show { transform: translate(-50%, 0); visibility: visible; }
 .toast.error { background: var(--danger); }
 
 /* ---------- ป้ายสถานะ ---------- */
