@@ -122,6 +122,92 @@ async function editUser(u, me, onDone) {
   }
 }
 
+// นำเข้าหลายคนพร้อมกัน: บรรทัดละคน คั่นด้วย , หรือ Tab
+// ชื่อผู้ใช้, ชื่อ-สกุล, ตำแหน่ง, บทบาท(teacher/hr/deputy/director), แอดมิน(ใช่/yes/1)
+const ROLE_ALIASES = {
+  teacher: 'teacher', 'ครู': 'teacher', hr: 'hr', 'หัวหน้าฝ่ายบุคลากร': 'hr',
+  deputy: 'deputy', 'รองผู้อำนวยการ': 'deputy', director: 'director', 'ผู้อำนวยการ': 'director',
+};
+
+function parseBulk(text) {
+  const rows = [];
+  const errors = [];
+  text.split('\n').map((l) => l.trim()).filter(Boolean).forEach((line, i) => {
+    const cells = line.split(line.includes('\t') ? '\t' : ',').map((c) => c.trim().replace(/^"|"$/g, ''));
+    if (i === 0 && /user_code|ชื่อผู้ใช้/i.test(cells[0])) return; // แถวหัวตาราง
+    const [code, name, position, role = 'teacher', admin = ''] = cells;
+    const r = ROLE_ALIASES[role.toLowerCase()] ?? ROLE_ALIASES[role];
+    if (!code || !name || !position || !r) errors.push(`บรรทัด ${i + 1}: ${line}`);
+    else rows.push({ user_code: code.toLowerCase(), full_name: name, position, role: r, is_admin: /^(ใช่|yes|y|1|true)$/i.test(admin) });
+  });
+  return { rows, errors };
+}
+
+async function bulkImport(onDone) {
+  const text = h('textarea', { rows: '10', placeholder: 't01, นางสาวสมใจ ใจดี, ครู, teacher\nben, นายเบ็น ..., ครูชำนาญการ, hr, ใช่' });
+  const msg = h('div', { class: 'alert error', role: 'alert', hidden: true });
+  let parsed = null;
+  const ok = await dialog({
+    title: 'นำเข้าผู้ใช้หลายคน',
+    body: [
+      h('p', { class: 'muted small' }, 'บรรทัดละคน: ชื่อผู้ใช้, ชื่อ-สกุล, ตำแหน่ง, บทบาท (teacher/hr/deputy/director), แอดมิน (ใช่/เว้นว่าง) — วางจากไฟล์ users_plan.csv ของสคริปต์ย้ายข้อมูลได้เลย'),
+      field('รายชื่อ', text),
+      msg,
+    ],
+    actions: [
+      { label: 'ยกเลิก', value: false },
+      {
+        label: 'ตรวจและนำเข้า', value: true, kind: 'primary',
+        validate: () => {
+          parsed = parseBulk(text.value);
+          msg.hidden = !parsed.errors.length && parsed.rows.length > 0;
+          msg.textContent = parsed.errors.length ? `อ่านไม่ได้ ${parsed.errors.length} บรรทัด — ${parsed.errors[0]}` : 'ยังไม่มีรายชื่อ';
+          return msg.hidden;
+        },
+      },
+    ],
+  });
+  if (!ok) return;
+
+  const results = [];
+  const status = h('p', { class: 'muted' });
+  const table = h('tbody');
+  const done = dialog({
+    title: 'ผลการนำเข้า',
+    body: [
+      status,
+      h('table', { class: 'table print-list' },
+        h('thead', {}, h('tr', {}, ['ชื่อ-สกุล', 'ชื่อผู้ใช้', 'รหัสผ่านชั่วคราว / ผล'].map((t) => h('th', {}, t)))),
+        table),
+      h('p', { class: 'alert warn small' }, 'จดหรือพิมพ์รายการนี้ก่อนปิด — ปิดแล้วจะดูรหัสชั่วคราวอีกไม่ได้ (รีเซ็ตใหม่ได้)'),
+      h('div', { class: 'row gap' },
+        h('button', {
+          type: 'button', class: 'btn',
+          onclick: () => copyText(results.map((r) => `${r.full_name}\t${r.user_code}\t${r.temp_password ?? r.error}`).join('\n')),
+        }, 'คัดลอกทั้งหมด'),
+        h('button', { type: 'button', class: 'btn', onclick: () => window.print() }, 'พิมพ์')),
+    ],
+    actions: [{ label: 'ปิด', value: true, kind: 'primary' }],
+  });
+  for (const [i, row] of parsed.rows.entries()) {
+    status.textContent = `กำลังสร้างบัญชี ${i + 1}/${parsed.rows.length}…`;
+    try {
+      const res = await adminUsers({ action: 'create', ...row });
+      results.push({ ...row, temp_password: res.temp_password });
+      table.append(h('tr', {}, h('td', {}, row.full_name), h('td', {}, h('code', {}, row.user_code)),
+        h('td', {}, h('code', { class: 'big-code' }, res.temp_password))));
+    } catch (e) {
+      results.push({ ...row, error: errorText(e) });
+      table.append(h('tr', { class: 'inactive' }, h('td', {}, row.full_name), h('td', {}, row.user_code),
+        h('td', {}, h('span', { class: 'reason' }, errorText(e)))));
+    }
+  }
+  const okCount = results.filter((r) => r.temp_password).length;
+  status.textContent = `สร้างสำเร็จ ${okCount} จาก ${results.length} บัญชี`;
+  await done;
+  onDone();
+}
+
 async function resetPassword(u) {
   if (!await confirmDialog('รีเซ็ตรหัสผ่าน', `ออกรหัสผ่านชั่วคราวใหม่ให้ ${u.full_name}? รหัสเดิมจะใช้ไม่ได้ทันที`, { okText: 'รีเซ็ต' })) return;
   try {
@@ -233,7 +319,9 @@ export default async function adminUsersView(el, _params, { profile }) {
     mount(el,
       h('div', { class: 'row space wrap' },
         h('h1', {}, 'จัดการผู้ใช้'),
-        h('button', { type: 'button', class: 'btn primary', onclick: () => addUser(load) }, '+ เพิ่มผู้ใช้')),
+        h('div', { class: 'row gap' },
+          h('button', { type: 'button', class: 'btn', onclick: () => bulkImport(load) }, 'นำเข้าหลายคน'),
+          h('button', { type: 'button', class: 'btn primary', onclick: () => addUser(load) }, '+ เพิ่มผู้ใช้'))),
       missing.length
         ? h('p', { class: 'alert warn' }, `ยังไม่มีผู้ใช้ในตำแหน่ง: ${missing.map((r) => ROLE_LABEL[r]).join(', ')} — ใบลาจะค้างที่ขั้นนั้นจนกว่าจะกำหนดผู้ใช้`)
         : null,

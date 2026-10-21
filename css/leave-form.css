@@ -73,4 +73,8 @@
 /* หน้าอื่นที่ไม่ใช่ใบลาพิมพ์แบบเรียบ ๆ */
 @media print {
   body:not(.printable) .btn { display: none; }
+  /* เปิดกล่องผลการนำเข้าอยู่: พิมพ์เฉพาะกล่องนั้น */
+  body:has(dialog[open] .print-list) > *:not(dialog) { display: none !important; }
+  dialog[open]:has(.print-list) { position: static; box-shadow: none; width: auto; max-height: none; }
+  dialog[open]:has(.print-list) .dialog-actions, dialog[open]:has(.print-list) .alert { display: none; }
 }

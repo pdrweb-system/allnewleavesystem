@@ -237,6 +237,19 @@ try {
   check(/มีผู้ใช้อยู่แล้ว/.test(await textOf(dlg.locator('.alert.error'))), 'ห้ามมีรองผู้อำนวยการ 2 คน');
   await confirmInDialog(admin, 'ยกเลิก');
 
+  // นำเข้าหลายคน (รูปแบบเดียวกับ users_plan.csv ของสคริปต์ย้ายข้อมูล)
+  await admin.getByRole('button', { name: 'นำเข้าหลายคน' }).click();
+  dlg = admin.locator('dialog[open]');
+  await dlg.getByLabel('รายชื่อ').fill('user_code,full_name,position,role,is_admin\nt3, นายครูสาม ทดสอบ, ครู, teacher,\nบรรทัดเสีย');
+  await dlg.getByRole('button', { name: 'ตรวจและนำเข้า' }).click();
+  check(/อ่านไม่ได้ 1 บรรทัด/.test(await textOf(dlg.locator('.alert.error'))), 'นำเข้าหลายคน: แจ้งบรรทัดที่อ่านไม่ได้');
+  await dlg.getByLabel('รายชื่อ').fill('t3, นายครูสาม ทดสอบ, ครู, teacher\nt4\tนางครูสี่ ทดสอบ\tครู\tครู');
+  await dlg.getByRole('button', { name: 'ตรวจและนำเข้า' }).click();
+  await admin.locator('dialog[open]', { hasText: 'สร้างสำเร็จ 2 จาก 2 บัญชี' }).waitFor({ timeout: 20000 });
+  check(await admin.locator('dialog[open] .big-code').count() === 2, 'นำเข้าหลายคน: ได้รหัสชั่วคราว 2 บัญชี');
+  await confirmInDialog(admin, 'ปิด');
+  await admin.locator('tr', { hasText: 'นางครูสี่ ทดสอบ' }).waitFor();
+
   for (const [i, who] of [['1', 'นายเบ็น ทดสอบระบบ'], ['2', 'นางรอง ผู้อำนวยการ'], ['3', 'นายผู้อำนวยการ ทดสอบ']]) {
     await admin.locator('tr', { hasText: who }).getByRole('button', { name: 'ลายเซ็น' }).click();
     dlg = admin.locator('dialog[open]');
