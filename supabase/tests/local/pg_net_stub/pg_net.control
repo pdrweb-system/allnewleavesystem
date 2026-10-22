@@ -1,0 +1,5 @@
+# ใช้ทดสอบในเครื่องเท่านั้น: จำลอง pg_net ให้บันทึกคำขอ HTTP ลงตารางแทนการส่งจริง
+comment = 'local test stub of pg_net'
+default_version = '0.0.1'
+relocatable = false
+trusted = true
