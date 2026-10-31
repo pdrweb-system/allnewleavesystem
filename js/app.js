@@ -30,7 +30,7 @@ let renderSeq = 0;
 let cleanup = null;
 
 function navLinks(p) {
-  const links = [['#/', 'หน้าหลัก']];
+  const links = p.is_admin ? [] : [['#/', 'หน้าหลัก']]; // บัญชีแอดมินไม่มีหน้าหลัก/ยื่นใบลา
   if (canFile(p)) links.push(['#/leave/new', 'ยื่นใบลา']);
   if (canViewAll(p)) links.push(['#/approvals', isApprover(p) ? 'อนุมัติใบลา' : 'ใบลาทั้งหมด']);
   if (canViewAll(p)) links.push(['#/summary', 'สรุป']);
@@ -68,7 +68,7 @@ function renderTopbar(path) {
     },
   }, h('span', { 'aria-hidden': 'true' }, '☰'), h('span', { class: 'menu-btn-name' }, p.full_name));
   mount(topbar,
-    h('a', { class: 'brand', href: '#/' }, SITE_NAME),
+    h('a', { class: 'brand', href: p.is_admin ? '#/admin/users' : '#/' }, SITE_NAME),
     h('nav', { class: 'nav-inline' }, navLinks(p).map(([href, label]) =>
       h('a', { href, class: path === href.slice(1) ? 'active' : null }, label))),
     toggle,
@@ -137,6 +137,11 @@ async function onRoute(path) {
       renderTopbar(path);
       mount(app, notice('บัญชียังใช้งานไม่ได้', 'กรุณาให้แอดมินตั้งรหัสเข้าใช้ 8 หลักให้ใหม่',
         h('button', { class: 'btn', onclick: async () => { await signOut(); navigate('/login'); } }, 'ออกจากระบบ')));
+      return;
+    }
+    if (p.is_admin && path === '/') {
+      // บัญชีแอดมินไม่มีหน้าหลัก: เข้าหน้าจัดการผู้ใช้แทน
+      navigate('/admin/users', { replace: true });
       return;
     }
     if (r.options.can && !r.options.can(p)) {

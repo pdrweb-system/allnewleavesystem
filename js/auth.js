@@ -14,7 +14,8 @@ export const auth = { user: null, profile: null };
 
 export const isApprover = (p) => !!p && p.role !== 'teacher';
 export const canViewAll = (p) => !!p && (p.is_admin || p.role !== 'teacher');
-export const canFile = (p) => !!p && p.role !== 'director';
+// แอดมินไม่ใช้บัญชีแอดมินยื่นใบลา (ให้ใช้บัญชีในบทบาทครูแยกต่างหาก) ผอ. ไม่ยื่นใบลาในระบบนี้
+export const canFile = (p) => !!p && p.role !== 'director' && !p.is_admin;
 
 export async function loadSession() {
   const { data } = await sb.auth.getSession();
