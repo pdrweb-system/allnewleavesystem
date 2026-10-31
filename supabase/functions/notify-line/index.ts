@@ -55,6 +55,8 @@ function buildMessage(event: string, p: Payload, siteUrl: string) {
 
   let title: string;
   let color: string;
+  let titleColor = '#ffffff';
+  let subColor = '#ffffffcc';
   let status: string;
   let button: { label: string; uri: string } | null = null;
   if (event === 'approved') {
@@ -73,6 +75,12 @@ function buildMessage(event: string, p: Payload, siteUrl: string) {
       ? 'ใบลาใหม่'
       : `${p.actor_step ? STEP_LABEL[p.actor_step] : 'ผู้อนุมัติ'}อนุมัติแล้ว`;
     color = event === 'submitted' ? '#1a73e8' : '#e37400';
+    if (event !== 'submitted' && p.actor_step === 'hr') {
+      // หัวหน้าฝ่ายบุคลากรอนุมัติแล้ว = สีเหลือง (ตัวอักษรเข้มเพื่อให้อ่านชัด)
+      color = '#f9c200';
+      titleColor = '#202124';
+      subColor = '#202124b3';
+    }
     status = WAITING[p.status] ?? p.status;
     if (siteUrl) button = { label: 'เปิดหน้าอนุมัติ', uri: `${siteUrl}/#/approvals` };
   }
@@ -83,8 +91,8 @@ function buildMessage(event: string, p: Payload, siteUrl: string) {
     header: {
       type: 'box', layout: 'vertical', backgroundColor: color, paddingAll: '12px',
       contents: [
-        { type: 'text', text: title, color: '#ffffff', weight: 'bold', size: 'md', wrap: true },
-        { type: 'text', text: 'ระบบใบลาออนไลน์', color: '#ffffffcc', size: 'xxs' },
+        { type: 'text', text: title, color: titleColor, weight: 'bold', size: 'md', wrap: true },
+        { type: 'text', text: 'ระบบใบลาออนไลน์', color: subColor, size: 'xxs' },
       ],
     },
     body: {
