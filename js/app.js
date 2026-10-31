@@ -84,6 +84,16 @@ function notice(title, message, actions = []) {
   return h('section', { class: 'card narrow center' }, h('h1', {}, title), h('p', {}, message), actions);
 }
 
+// หลังมีการอัปเดตเว็บ เบราว์เซอร์อาจยังถือไฟล์ .js ตัวเก่าบางไฟล์ในแคช (GitHub Pages แคชราว 10 นาที)
+// จนโมดูลเก่า/ใหม่ไม่เข้ากัน: โหลดไฟล์ใหม่ทับแคชแล้วรีเฟรชให้เองหนึ่งครั้ง ถ้ายังไม่หายให้ผู้ใช้กดรีเฟรช
+const STALE_ASSETS = /does not provide an export|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i;
+async function refreshAssets() {
+  const urls = performance.getEntriesByType('resource').map((r) => r.name)
+    .filter((u) => u.startsWith(location.origin) && /\.(js|css)(\?|$)/.test(u));
+  await Promise.all([...new Set(urls)].map((u) => fetch(u, { cache: 'reload' }).catch(() => {})));
+  location.reload();
+}
+
 async function onRoute(path) {
   const seq = ++renderSeq;
   const r = matchRoute(path);
@@ -154,8 +164,22 @@ async function onRoute(path) {
     const done = await render(container, r.params, { profile: auth.profile, path });
     if (typeof done === 'function') cleanup = done;
     app.focus({ preventScroll: true });
+    sessionStorage.removeItem('leave.reloaded');
   } catch (e) {
     if (!e?.code) console.error(e); // error จากเซิร์ฟเวอร์ (มี code) แสดงในหน้าอยู่แล้ว
+    if (STALE_ASSETS.test(e?.message ?? '')) {
+      if (!sessionStorage.getItem('leave.reloaded')) {
+        sessionStorage.setItem('leave.reloaded', '1');
+        mount(container, loading('เว็บเพิ่งอัปเดต กำลังโหลดไฟล์ใหม่…'));
+        await refreshAssets();
+        return;
+      }
+      if (seq === renderSeq) {
+        mount(container, notice('เว็บเพิ่งอัปเดต', 'กรุณารีเฟรชหน้า (Ctrl+F5 บนคอมพิวเตอร์ หรือปิดแล้วเปิดเว็บใหม่บนมือถือ)',
+          h('button', { class: 'btn primary', onclick: () => { sessionStorage.removeItem('leave.reloaded'); refreshAssets(); } }, 'รีเฟรชตอนนี้')));
+      }
+      return;
+    }
     if (seq === renderSeq) mount(container, errorBox(e));
   }
 }
