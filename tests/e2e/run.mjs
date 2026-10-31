@@ -471,6 +471,13 @@ try {
       .map((e) => e.getBoundingClientRect());
     return Math.abs(mine.left - boss.left) < 1 && Math.abs(mine.right - boss.right) < 1;
   }), 'ช่องลายเซ็นผู้ลาตรงแนวเดียวกับช่องลายเซ็นผู้บังคับบัญชา');
+  check(await t1.evaluate(() => {
+    const sec = document.querySelectorAll('.f-sec')[1];
+    const order = sec.querySelector('.f-order').getBoundingClientRect();
+    const above = sec.querySelector('.f-order').previousElementSibling.getBoundingClientRect();
+    const below = sec.querySelector('.f-order ~ .sign .sign-line').getBoundingClientRect();
+    return order.top - above.bottom > below.top - order.bottom;
+  }), '"คำสั่ง อนุญาต/ไม่อนุญาต" อยู่ชิดเหนือลายเซ็น ผอ.');
   const thisLeaveCol = await t1.locator('.f-stats tbody tr td:nth-child(3)').allTextContents();
   check(thisLeaveCol.join('|') === '1 / 2|-|-|-', 'ช่อง "ลาครั้งนี้" ใส่ - ทุกประเภทที่ไม่ได้ลา', thisLeaveCol.join('|'));
   // ใบที่ไม่อนุมัติ: ไม่มีลายเซ็นหัวหน้าฝ่าย

@@ -87,7 +87,9 @@
 .f-note { font-size: 10pt; color: #333; }
 .f-reject { color: #000; font-weight: 600; }
 .f-opinion { margin-bottom: 1mm; }
-.f-order { margin: 6mm 0 1mm; }
+/* คำสั่ง ผอ. อยู่ติดเหนือลายเซ็น ผอ. (เว้นระยะจากส่วนของรองฯ ด้านบนแทน) */
+.f-sec > .f-order { margin: 10mm 0 0; } /* ต้องชนะ .a4 p { margin: 0 } */
+.f-sec > .f-order ~ .sign { margin-top: -2mm; }
 .f-legacy { margin-top: 4mm; font-size: 9.5pt; color: #444; text-align: center; }
 
 @media print {
