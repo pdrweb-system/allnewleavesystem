@@ -140,6 +140,8 @@ function parseBulk(text) {
   text.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => l.trim()).forEach((line, i) => {
     const cells = line.split(line.includes('\t') ? '\t' : ',').map((c) => c.trim().replace(/^"|"$/g, ''));
     if (i === 0 && /user_code|full_name|ชื่อ-สกุล/i.test(cells.join(' '))) return; // แถวหัวตาราง
+    // คอลัมน์แรกคือรหัสอ้างอิง (เว้นว่างได้) ถ้าไม่ใช่รูปแบบรหัส (เช่น เป็นชื่อคน) แปลว่าแถวนี้ไม่มีคอลัมน์รหัสอ้างอิง
+    if (cells[0] && !/^[a-z0-9][a-z0-9._-]{0,31}$/i.test(cells[0])) cells.unshift('');
     const [ref = '', name, position, role = 'teacher', admin = '', code = ''] = cells;
     const r = ROLE_ALIASES[role.toLowerCase()] ?? ROLE_ALIASES[role || 'teacher'];
     if (!name || !position || !r || (code && !/^[0-9]{8}$/.test(code))) errors.push(`บรรทัด ${i + 1}: ${line.trim()}`);
@@ -161,7 +163,8 @@ async function bulkImport(onDone) {
     title: 'นำเข้าผู้ใช้หลายคน',
     body: [
       h('p', { class: 'muted small' }, 'บรรทัดละคน: รหัสอ้างอิง (เว้นว่างได้), ชื่อ-สกุล, ตำแหน่ง, บทบาท (teacher/hr/deputy/director), '
-        + 'แอดมิน (ใช่/เว้นว่าง), รหัสเข้าใช้ 8 หลัก (เว้นว่าง = ระบบสุ่ม) — วางจากไฟล์ users_plan.csv ของสคริปต์ย้ายข้อมูลได้เลย'),
+        + 'แอดมิน (ใช่/เว้นว่าง), รหัสเข้าใช้ 8 หลัก (เว้นว่าง = ระบบสุ่ม) — คัดลอกจาก Excel มาวางได้เลย ไม่ต้องใส่ comma '
+        + '(ข้อความสีเทาในช่องเป็นแค่ตัวอย่าง ต้องวางหรือพิมพ์รายชื่อจริง)'),
       field('รายชื่อ', text),
       msg,
     ],
