@@ -32,8 +32,13 @@ export function progressDots(leave) {
     stepStates(leave).map((s) => h('li', { class: s.state, title: STEP_LABEL[s.step] }, STEP_LABEL[s.step])));
 }
 
+// สีประจำประเภทการลา (ใช้ร่วมกันทั้งระบบ): ตามลำดับประเภทใน leave_types ได้ tc-0 .. tc-5 สีไม่ซ้ำกัน
+export function typeColor(typeLabels, code) {
+  return `tc-${Math.max(0, Object.keys(typeLabels).indexOf(code)) % 6}`;
+}
+
 export function leaveCard(leave, typeLabels, { showName = false } = {}) {
-  return h('a', { class: 'leave-card', href: `#/leave/${leave.id}` },
+  return h('a', { class: `leave-card ${typeColor(typeLabels, leave.leave_type)}`, href: `#/leave/${leave.id}` },
     h('div', { class: 'leave-card-top' },
       h('strong', {}, showName ? leave.snap_name : typeLabels[leave.leave_type] ?? leave.leave_type),
       statusBadge(leave.status)),

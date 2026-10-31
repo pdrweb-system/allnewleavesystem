@@ -298,20 +298,25 @@ details summary { cursor: pointer; color: var(--primary); margin: 6px 0; }
 .login-head h1 { margin: 8px 0 2px; }
 .logo { width: 64px; height: 64px; border-radius: 18px; background: var(--primary); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 700; }
 
-/* กรอบสีประจำประเภทการลา (ตารางการลาล่าสุด) สีไม่ซ้ำกัน 6 สี */
+/* กรอบสีประจำประเภทการลา ใช้ร่วมกันทั้งระบบ (ตารางการลาล่าสุด การ์ดยอดลา รายการใบลา) สีไม่ซ้ำกัน 6 สี */
 .type-table { border-collapse: separate; border-spacing: 0 8px; background: transparent; box-shadow: none; overflow: visible; }
 .type-table th { background: transparent; border-bottom: 0; }
 .type-table td { border: 0; border-top: 2px solid var(--tc); border-bottom: 2px solid var(--tc); background: var(--tint); }
 .type-table td:first-child { border-left: 2px solid var(--tc); border-radius: 10px 0 0 10px; }
 .type-table td:last-child { border-right: 2px solid var(--tc); border-radius: 0 10px 10px 0; }
 .type-table td:first-child strong { color: var(--tc); }
-.type-table tr.tc-0 { --tc: #c0392b; --tint: #fdf4f3; }
-.type-table tr.tc-1 { --tc: #2563b8; --tint: #f2f6fc; }
-.type-table tr.tc-2 { --tc: #8e44ad; --tint: #f8f3fb; }
-.type-table tr.tc-3 { --tc: #d68100; --tint: #fff8ec; }
-.type-table tr.tc-4 { --tc: #138d75; --tint: #f1faf8; }
-.type-table tr.tc-5 { --tc: #c2185b; --tint: #fdf2f7; }
+.tc-0 { --tc: #c0392b; --tint: #fdf4f3; }
+.tc-1 { --tc: #2563b8; --tint: #f2f6fc; }
+.tc-2 { --tc: #8e44ad; --tint: #f8f3fb; }
+.tc-3 { --tc: #d68100; --tint: #fff8ec; }
+.tc-4 { --tc: #138d75; --tint: #f1faf8; }
+.tc-5 { --tc: #c2185b; --tint: #fdf2f7; }
 @media (max-width: 767px) {
   .type-table.responsive tr { border: 2px solid var(--tc); border-radius: 10px; background: var(--tint); margin-bottom: 8px; }
   .type-table.responsive td { border: 0; background: transparent; border-radius: 0; }
 }
+
+.balance[class*="tc-"] { border: 2px solid var(--tc); background: var(--tint); }
+.balance[class*="tc-"] h3 { color: var(--tc); }
+.leave-card[class*="tc-"] { border: 2px solid var(--tc); background: var(--tint); }
+.leave-card[class*="tc-"]:hover { box-shadow: 0 0 0 2px var(--tc); }

@@ -538,6 +538,10 @@ try {
   check(/22 ต\.ค\. 2569 – 26 ต\.ค\. 2569 \(2 วัน\)/.test(sickRow) && /1 \/ 2/.test(sickRow), 'การลาล่าสุด: ลาป่วย 22–26 ต.ค. 2569 (2 วัน) ลามาแล้ว 1 ครั้ง / 2 วัน', sickRow);
   await t1.goto(`${SITE}/#/`);
   await t1.locator('.balance').first().waitFor();
+  const balColors = await t1.locator('.balance').evaluateAll((els) => els.map((e) => getComputedStyle(e).getPropertyValue('--tc').trim()));
+  check(balColors.length === 4 && new Set(balColors).size === 4 && balColors.every((c) => /^#[0-9a-f]{6}$/i.test(c)), 'การ์ดยอดลาในหน้าหลักใช้สีประจำประเภทไม่ซ้ำกัน', balColors.join(' | '));
+  const sickCardColor = await t1.locator('.leave-card').first().evaluate((e) => getComputedStyle(e).getPropertyValue('--tc').trim());
+  check(sickCardColor === balColors[0], 'ใบลาป่วยในรายการใบลาใช้สีเดียวกับการ์ดลาป่วย', sickCardColor);
   const sick = await t1.locator('.balance', { hasText: 'ลาป่วย' }).textContent();
   check(/1 ครั้ง · 2 วัน/.test(sick), 'ยอดลาป่วยของครู 1 = 1 ครั้ง 2 วัน', sick);
   await shot(t1, '11-home-after-mobile');
