@@ -220,6 +220,17 @@ async function asCaller(c, fn) {
 const storageError = (res, status, error, message) => send(res, status === 404 ? 400 : status, { statusCode: String(status), error, message });
 
 async function handleStorage(req, res, url) {
+  // GET /object/public/<bucket>/<path>: อ่านได้โดยไม่ต้องมี JWT เฉพาะ bucket ที่ public = true
+  const pub = /^\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/.exec(decodeURIComponent(url.pathname));
+  if (pub && req.method === 'GET') {
+    const { rows: [bk] } = await pool.query('select public from storage.buckets where id = $1', [pub[1]]);
+    if (!bk?.public) return storageError(res, 404, 'not_found', 'Bucket not found');
+    const { rows: [obj] } = await pool.query('select metadata from storage.objects where bucket_id = $1 and name = $2', [pub[1], pub[2]]);
+    const file = path.join(STORAGE_DIR, pub[1], pub[2]);
+    const data = obj && file.startsWith(path.join(STORAGE_DIR, pub[1]) + path.sep) ? await fs.readFile(file).catch(() => null) : null;
+    if (!data) return storageError(res, 404, 'not_found', 'Object not found');
+    return send(res, 200, data, { 'content-type': obj.metadata?.mimetype ?? 'application/octet-stream' });
+  }
   const c = claims(req);
   if (!c) return storageError(res, 400, 'invalid_jwt', 'invalid JWT');
   const p = decodeURIComponent(url.pathname.replace(/^\/storage\/v1/, ''));

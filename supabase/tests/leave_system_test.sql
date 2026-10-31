@@ -791,6 +791,50 @@ begin
   end;
   reset role;
 
+  -- ---------------------------------------------------------------------
+  -- 14. รูปพื้นหลังหน้าล็อกอิน: bucket สาธารณะ เขียน/ลบได้เฉพาะแอดมิน
+  -- ---------------------------------------------------------------------
+  reset role;
+  select count(*) into n from storage.buckets where id = 'login-assets' and public
+    and file_size_limit = 2097152 and allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
+  if n = 1 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- bucket login-assets ตั้งค่าไม่ถูก'; end if;
+  select count(*) into n from storage.buckets where public and id <> 'login-assets';
+  if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- มี bucket สาธารณะอื่นนอกจาก login-assets'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_t1, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin
+    insert into storage.objects (bucket_id, name, owner, owner_id) values ('login-assets', gen_random_uuid() || '.jpg', u_t1, u_t1::text);
+    fail := fail + 1; failures := failures || E'\n- ครูอัปโหลดรูปหน้าล็อกอินได้';
+  exception when insufficient_privilege then pass := pass + 1;
+  end;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin
+    insert into storage.objects (bucket_id, name, owner, owner_id) values ('login-assets', '11111111-1111-1111-1111-111111111111.jpg', u_admin, u_admin::text);
+    pass := pass + 1;
+  exception when others then
+    fail := fail + 1; failures := failures || E'\n- แอดมินอัปโหลดรูปหน้าล็อกอินไม่ได้: ' || sqlerrm;
+  end;
+  update public.login_page set background = 'image', bg_image = '11111111-1111-1111-1111-111111111111.jpg', bg_dim = 50;
+  get diagnostics n = row_count;
+  if n = 1 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- แอดมินตั้งรูปพื้นหลังไม่ได้'; end if;
+  begin
+    update public.login_page set bg_image = '../../etc/passwd';
+    fail := fail + 1; failures := failures || E'\n- ชื่อไฟล์รูปที่ผิดรูปแบบผ่านได้';
+  exception when check_violation then pass := pass + 1;
+  end;
+  begin
+    update public.login_page set bg_dim = 95;
+    fail := fail + 1; failures := failures || E'\n- ความเข้มฝ้านอกช่วงผ่านได้';
+  exception when check_violation then pass := pass + 1;
+  end;
+  perform set_config('storage.allow_delete_query', 'true', true);
+  delete from storage.objects where bucket_id = 'login-assets';
+  get diagnostics n = row_count;
+  if n = 1 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- แอดมินลบรูปหน้าล็อกอินไม่ได้'; end if;
+  reset role;
+
   raise exception 'TEST REPORT: pass=% fail=% %', pass, fail, failures;
 end
 $test$;
