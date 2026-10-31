@@ -221,7 +221,7 @@ async function bulkImport(onDone) {
   onDone();
 }
 
-async function setLoginCode(u) {
+async function setLoginCode(u, me) {
   const code = codeInput();
   const msg = h('div', { class: 'alert error', role: 'alert', hidden: true });
   let res = null;
@@ -250,7 +250,14 @@ async function setLoginCode(u) {
       },
     ],
   });
-  if (ok && res) await showLoginCode(u.full_name, res.login_code);
+  if (ok && res) {
+    await showLoginCode(u.full_name, res.login_code);
+    if (u.id === me.id) {
+      // เปลี่ยนรหัสของตัวเอง ล็อกอินเดิมใช้ไม่ได้แล้ว ให้เข้าสู่ระบบใหม่ด้วยรหัสใหม่
+      sessionStorage.setItem('leave.notice', 'เปลี่ยนรหัสของคุณแล้ว กรุณาเข้าสู่ระบบใหม่ด้วยรหัสใหม่');
+      await sb.auth.signOut({ scope: 'local' }).catch(() => {});
+    }
+  }
 }
 
 async function signatureDialog(u, onDone) {
@@ -344,7 +351,7 @@ export default async function adminUsersView(el, _params, { profile }) {
           : null),
       h('td', { class: 'actions', 'data-label': '' },
         h('button', { type: 'button', class: 'btn small', onclick: () => editUser(u, profile, load) }, 'แก้ไข'),
-        u.active ? h('button', { type: 'button', class: 'btn small', onclick: () => setLoginCode(u).then(load) }, 'ตั้งรหัสใหม่') : null,
+        u.active ? h('button', { type: 'button', class: 'btn small', onclick: () => setLoginCode(u, profile).then(() => { if (u.id !== profile.id) load(); }) }, 'ตั้งรหัสใหม่') : null,
         u.role !== 'teacher'
           ? h('button', { type: 'button', class: 'btn small', onclick: () => signatureDialog(u, load) }, 'ลายเซ็น')
           : null)));

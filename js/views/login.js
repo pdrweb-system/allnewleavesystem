@@ -11,6 +11,12 @@ export default function login(el) {
   });
   const remember = h('input', { type: 'checkbox', checked: getRemember() });
   const message = h('div', { class: 'alert error', role: 'alert', hidden: true });
+  const notice = sessionStorage.getItem('leave.notice');
+  sessionStorage.removeItem('leave.notice');
+  if (notice) {
+    message.textContent = notice;
+    message.hidden = false;
+  }
   const submit = h('button', { type: 'submit', class: 'btn primary block' }, 'เข้าสู่ระบบ');
 
   const form = h('form', {

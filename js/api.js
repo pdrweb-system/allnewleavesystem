@@ -78,6 +78,11 @@ export async function callFunction(name, body) {
     } catch {
       // ignore
     }
+    if (error.context?.status === 401) {
+      // ล็อกอินเดิมใช้ไม่ได้แล้ว (เช่น เพิ่งเปลี่ยนรหัสของตัวเอง) พาออกไปล็อกอินใหม่แทนการค้างหน้าเดิม
+      sessionStorage.setItem('leave.notice', 'เซสชันหมดอายุหรือรหัสเข้าใช้ถูกเปลี่ยน กรุณาเข้าสู่ระบบใหม่ด้วยรหัสปัจจุบัน');
+      await sb.auth.signOut({ scope: 'local' }).catch(() => {});
+    }
     throw new Error(message);
   }
   return data;
