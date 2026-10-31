@@ -304,19 +304,19 @@ details summary { cursor: pointer; color: var(--primary); margin: 6px 0; }
 .type-table td { border: 0; border-top: 2px solid var(--tc); border-bottom: 2px solid var(--tc); background: var(--tint); }
 .type-table td:first-child { border-left: 2px solid var(--tc); border-radius: 10px 0 0 10px; }
 .type-table td:last-child { border-right: 2px solid var(--tc); border-radius: 0 10px 10px 0; }
-.type-table td:first-child strong { color: var(--tc); }
-.tc-0 { --tc: #c0392b; --tint: #fdf4f3; }
+.type-table td:first-child strong { color: var(--tx, var(--tc)); }
+.tc-0 { --tc: #e5b400; --tx: #8a6500; --tint: #fffbe6; } /* เหลือง (ลาป่วย): ตัวอักษรใช้สีทองเข้มให้อ่านออก */
 .tc-1 { --tc: #2563b8; --tint: #f2f6fc; }
 .tc-2 { --tc: #8e44ad; --tint: #f8f3fb; }
-.tc-3 { --tc: #d68100; --tint: #fff8ec; }
+.tc-3 { --tc: #c0392b; --tint: #fdf4f3; } /* แดง (ลาไปช่วยเหลือภริยาที่คลอดบุตร) */
 .tc-4 { --tc: #138d75; --tint: #f1faf8; }
-.tc-5 { --tc: #c2185b; --tint: #fdf2f7; }
+.tc-5 { --tc: #795548; --tint: #f7f3f1; }
 @media (max-width: 767px) {
   .type-table.responsive tr { border: 2px solid var(--tc); border-radius: 10px; background: var(--tint); margin-bottom: 8px; }
   .type-table.responsive td { border: 0; background: transparent; border-radius: 0; }
 }
 
 .balance[class*="tc-"] { border: 2px solid var(--tc); background: var(--tint); }
-.balance[class*="tc-"] h3 { color: var(--tc); }
+.balance[class*="tc-"] h3 { color: var(--tx, var(--tc)); }
 .leave-card[class*="tc-"] { border: 2px solid var(--tc); background: var(--tint); }
 .leave-card[class*="tc-"]:hover { box-shadow: 0 0 0 2px var(--tc); }
