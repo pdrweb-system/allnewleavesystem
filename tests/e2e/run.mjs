@@ -334,7 +334,7 @@ try {
   await t1.locator('table.table tbody tr').first().waitFor();
   check((await t1.locator('table.table tbody tr').count()) === 4 && (await t1.locator('table.table tbody tr').first().textContent()).includes('ลาป่วย')
     && (await t1.locator('table.table tbody td').allTextContents()).filter((c) => c === '-').length === 8, 'หน้ายื่นใบลาแสดงการลาล่าสุดครบ 4 ประเภท (ยังไม่เคยลา = -)');
-  await t1.locator('form').getByText('ลาป่วย', { exact: true }).click();
+  await t1.locator('#leave-type').selectOption({ label: 'ลาป่วย' });
   await t1.locator('#from').fill('2026-10-22');
   await t1.locator('#to').fill('2026-10-26');
   await t1.locator('.preview-days').waitFor();
@@ -365,7 +365,7 @@ try {
 
   // วันซ้อนต้องยื่นไม่ได้
   await t1.goto(`${SITE}/#/leave/new`);
-  await t1.locator('form').getByText('ลากิจ', { exact: true }).click();
+  await t1.locator('#leave-type').selectOption({ label: 'ลากิจ' });
   await t1.locator('#from').fill('2026-10-26');
   await t1.locator('#to').fill('2026-10-26');
   await t1.locator('.preview .alert.error').waitFor();
@@ -385,7 +385,7 @@ try {
 
   const submitSimple = async (page, type, day, reason) => {
     await page.goto(`${SITE}/#/leave/new`);
-    await page.locator('form').getByText(type, { exact: true }).click();
+    await page.locator('#leave-type').selectOption({ label: type });
     await page.locator('#from').fill(day);
     await page.locator('#to').fill(day);
     await page.locator('.preview-days').waitFor();

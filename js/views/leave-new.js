@@ -40,10 +40,10 @@ export default async function leaveNew(el, _params, { profile }) {
   const today = todayISO();
 
   // ---------- ช่องกรอก ----------
-  const typeInputs = types.map((t) => h('input', { type: 'radio', name: 'leave_type', value: t.code }));
-  const typeGroup = h('fieldset', { class: 'field choices' },
-    h('legend', {}, 'ประเภทการลา'),
-    types.map((t, i) => h('label', { class: 'choice' }, typeInputs[i], h('span', {}, t.label))));
+  const typeSelect = h('select', { id: 'leave-type', name: 'leave_type', required: true },
+    h('option', { value: '' }, '— เลือกประเภทการลา —'),
+    types.map((t) => h('option', { value: t.code }, t.label)));
+  const typeGroup = h('div', { class: 'field' }, h('label', { for: 'leave-type' }, 'ประเภทการลา'), typeSelect);
 
   const from = h('input', { type: 'date', id: 'from', required: true, value: today });
   const to = h('input', { type: 'date', id: 'to', required: true, value: today });
@@ -77,7 +77,7 @@ export default async function leaveNew(el, _params, { profile }) {
   let previewSeq = 0;
   let lastPreview = null;
   let timer;
-  const selectedType = () => typeInputs.find((i) => i.checked)?.value ?? null;
+  const selectedType = () => typeSelect.value || null;
   const isHalf = () => from.value && from.value === to.value && half.checked;
 
   function showPreview(res) {
@@ -135,7 +135,7 @@ export default async function leaveNew(el, _params, { profile }) {
     schedule();
   });
   to.addEventListener('change', schedule);
-  for (const i of [...typeInputs, full, half]) i.addEventListener('change', schedule);
+  for (const i of [typeSelect, full, half]) i.addEventListener('change', schedule);
 
   certInput.addEventListener('change', async () => {
     const file = certInput.files?.[0];
