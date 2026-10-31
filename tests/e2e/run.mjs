@@ -533,6 +533,19 @@ try {
   const t2b = await newPage('t2b', true);
   await login(t2b, users.t2.code);
   check(/ถูกปิดใช้งาน/.test(await textOf(t2b.locator('.alert.error'))), 'บัญชีที่ปิดแล้วล็อกอินไม่ได้');
+
+  // ===== 8. แอดมินเปลี่ยนรหัสของตัวเอง → ออกไปล็อกอินใหม่ด้วยรหัสใหม่ =====
+  step = 'self-code';
+  await admin.goto(`${SITE}/#/admin/users`);
+  await admin.locator('tr', { hasText: 'นายเบ็น ทดสอบระบบ' }).getByRole('button', { name: 'ตั้งรหัสใหม่' }).click();
+  await admin.locator('dialog[open]').getByLabel('รหัสเข้าใช้ใหม่').fill('846213');
+  await confirmInDialog(admin, 'บันทึกรหัสใหม่');
+  await admin.locator('dialog[open] .big-code').waitFor();
+  await confirmInDialog(admin, 'จดแล้ว ปิดหน้าต่าง');
+  await admin.waitForURL(/#\/login/);
+  check(/เปลี่ยนรหัสของคุณแล้ว/.test(await textOf(admin.locator('.alert.error'))), 'เปลี่ยนรหัสของตัวเองแล้วพาไปล็อกอินใหม่พร้อมข้อความ');
+  await loginOk(admin, '846213');
+  check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ')), 'เข้าด้วยรหัสใหม่ได้');
 } catch (e) {
   check(false, 'ข้อผิดพลาดระหว่างทดสอบ', e.stack);
   for (const [i, ctx] of browser.contexts().entries()) {
