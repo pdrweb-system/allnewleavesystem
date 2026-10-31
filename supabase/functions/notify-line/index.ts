@@ -87,6 +87,7 @@ function buildMessage(event: string, p: Payload, siteUrl: string) {
       titleColor = '#202124';
       subColor = '#202124b3';
     }
+    if (event !== 'submitted' && p.actor_step === 'deputy') color = '#8e24aa'; // รองผู้อำนวยการอนุมัติแล้ว = สีม่วง
     status = WAITING[p.status] ?? p.status;
     if (siteUrl) button = { label: 'เปิดหน้าอนุมัติ', uri: `${siteUrl}/#/approvals` };
   }
