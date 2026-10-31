@@ -42,7 +42,7 @@ function row(label: string, value: string) {
     type: 'box', layout: 'baseline', spacing: 'sm',
     borderWidth: '1px', borderColor: '#d0d5dd', cornerRadius: 'md', paddingAll: '8px',
     contents: [
-      { type: 'text', text: label, color: '#8a8a8a', size: 'sm', flex: 2 },
+      { type: 'text', text: label, color: '#000000', weight: 'bold', size: 'sm', flex: 2 },
       { type: 'text', text: value, color: '#222222', size: 'sm', flex: 5, wrap: true },
     ],
   };
@@ -109,7 +109,12 @@ function buildMessage(event: string, p: Payload, siteUrl: string) {
   if (button) {
     bubble.footer = {
       type: 'box', layout: 'vertical', paddingAll: '10px',
-      contents: [{ type: 'button', style: 'primary', color, height: 'sm', action: { type: 'uri', ...button } }],
+      // ปุ่มมาตรฐานของ LINE เปลี่ยนสีตัวอักษรไม่ได้ จึงใช้กล่องกดได้ที่มีตัวอักษรสีดำตัวหนาแทน (ทุกการ์ด)
+      contents: [{
+        type: 'box', layout: 'vertical', backgroundColor: color, cornerRadius: 'md', paddingAll: '10px',
+        action: { type: 'uri', ...button },
+        contents: [{ type: 'text', text: button.label, color: '#000000', weight: 'bold', align: 'center', size: 'md' }],
+      }],
     };
   }
   return {
