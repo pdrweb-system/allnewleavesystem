@@ -170,7 +170,8 @@ async function newPage(label, mobile) {
   const page = await ctx.newPage();
   page.on('pageerror', (e) => problems.push(`${label}: pageerror ${e.message}`));
   page.on('console', (m) => {
-    if (m.type() === 'error' && !/Failed to load resource: the server responded with a status of (400|401|403|404|406|409)/.test(m.text())) {
+    // ข้อความ SyntaxError จากขั้นทดสอบแคชเก่า (ข้อ 9) เป็นสิ่งที่ตั้งใจให้เกิด
+    if (m.type() === 'error' && !/Failed to load resource: the server responded with a status of (400|401|403|404|406|409)|does not provide an export named 'deleteLeave'/.test(m.text())) {
       problems.push(`${label}: console ${m.text()}`);
     }
   });
@@ -558,6 +559,21 @@ try {
   check(/เปลี่ยนรหัสของคุณแล้ว/.test(await textOf(admin.locator('.alert.error'))), 'เปลี่ยนรหัสของตัวเองแล้วพาไปล็อกอินใหม่พร้อมข้อความ');
   await loginOk(admin, '846213');
   check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ')), 'เข้าด้วยรหัสใหม่ได้');
+
+  // ===== 9. แคชเบราว์เซอร์ถือ api.js ตัวเก่า (ไม่มี deleteLeave) แต่ home.js ตัวใหม่ → โหลดไฟล์ใหม่แล้วรีเฟรชให้เอง =====
+  step = 'stale-cache';
+  let apiHits = 0;
+  await admin.context().route('**/js/api.js', async (route) => {
+    apiHits += 1;
+    if (apiHits === 1) {
+      const real = fs.readFileSync(path.join(ROOT, 'js/api.js'), 'utf8');
+      return route.fulfill({ contentType: 'text/javascript', body: real.replace('export async function deleteLeave', 'async function deleteLeave') });
+    }
+    return route.continue();
+  });
+  await admin.reload();
+  check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ'), 15000) && apiHits >= 2,
+    'ไฟล์ api.js เก่าในแคช: เว็บโหลดไฟล์ใหม่แล้วรีเฟรชเองจนใช้งานได้', `โหลด api.js ${apiHits} ครั้ง`);
 } catch (e) {
   check(false, 'ข้อผิดพลาดระหว่างทดสอบ', e.stack);
   for (const [i, ctx] of browser.contexts().entries()) {
