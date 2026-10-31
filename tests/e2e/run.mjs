@@ -466,6 +466,11 @@ try {
     'ส่วนลายเซ็นผู้อนุมัติไม่มีกรอบ');
   check(await t1.locator('.a4 .fill.w-title').evaluateAll((els) => els.length === 3 && els.every((e) => e.scrollWidth <= e.clientWidth)),
     'ตำแหน่งผู้อนุมัติอยู่บรรทัดเดียวไม่ล้นเส้น');
+  check(await t1.evaluate(() => {
+    const [mine, boss] = [document.querySelector('.f-applicant .sign-line'), document.querySelectorAll('.f-sec')[1].querySelector('.sign-line')]
+      .map((e) => e.getBoundingClientRect());
+    return Math.abs(mine.left - boss.left) < 1 && Math.abs(mine.right - boss.right) < 1;
+  }), 'ช่องลายเซ็นผู้ลาตรงแนวเดียวกับช่องลายเซ็นผู้บังคับบัญชา');
   const thisLeaveCol = await t1.locator('.f-stats tbody tr td:nth-child(3)').allTextContents();
   check(thisLeaveCol.join('|') === '1 / 2|-|-|-', 'ช่อง "ลาครั้งนี้" ใส่ - ทุกประเภทที่ไม่ได้ลา', thisLeaveCol.join('|'));
   // ใบที่ไม่อนุมัติ: ไม่มีลายเซ็นหัวหน้าฝ่าย
