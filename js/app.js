@@ -21,6 +21,7 @@ route('/leave/:id/form', view('./views/leave-form.js'), { title: 'ใบลา',
 route('/approvals', view('./views/approvals.js'), { can: canViewAll, title: 'อนุมัติใบลา' });
 route('/summary', view('./views/summary.js'), { can: canViewAll, title: 'สรุปการลา' });
 route('/admin/users', view('./views/admin-users.js'), { can: (p) => p.is_admin, title: 'จัดการผู้ใช้' });
+route('/admin/login', view('./views/admin-login.js'), { can: (p) => p.is_admin, title: 'ปรับแต่งหน้าล็อกอิน' });
 route('/admin/settings', view('./views/admin-settings.js'), { can: (p) => p.is_admin, title: 'ตั้งค่าระบบ' });
 
 const app = document.getElementById('app');
@@ -37,7 +38,7 @@ function navLinks(p) {
   if (canFile(p)) links.push(['#/leave/new', 'ยื่นใบลา']);
   if (!isApprover(p) && canViewAll(p)) links.push(['#/approvals', 'ใบลาทั้งหมด']);
   if (canViewAll(p)) links.push(['#/summary', 'สรุป']);
-  if (p.is_admin) links.push(['#/admin/users', 'ผู้ใช้'], ['#/admin/settings', 'ตั้งค่า']);
+  if (p.is_admin) links.push(['#/admin/users', 'ผู้ใช้'], ['#/admin/login', 'หน้าล็อกอิน'], ['#/admin/settings', 'ตั้งค่า']);
   return links;
 }
 

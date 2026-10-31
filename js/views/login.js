@@ -1,28 +1,27 @@
-import { h, mount, errorText } from '../ui.js';
+import { mount, errorText } from '../ui.js';
 import { signIn } from '../auth.js';
-import { getRemember } from '../supabase.js';
 import { navigate } from '../router.js';
-import { SITE_NAME, SCHOOL_NAME } from '../config.js';
+import { sb, getRemember } from '../supabase.js';
+import { buildLoginCard } from '../lib/login-card.js';
 
-export default function login(el) {
-  const code = h('input', {
-    name: 'password', type: 'password', autocomplete: 'current-password', autocapitalize: 'none', spellcheck: 'false',
-    maxlength: '72', required: true,
-  });
-  const remember = h('input', { type: 'checkbox', checked: getRemember() });
-  const message = h('div', { class: 'alert error', role: 'alert', hidden: true });
+export default async function login(el) {
+  // ตั้งค่าหน้าล็อกอินจากแอดมิน (anon อ่านได้) ถ้าอ่านไม่ได้ใช้ค่าตั้งต้นของระบบ
+  let cfg = null;
+  try {
+    const { data } = await sb.from('login_page').select('*').eq('id', 1).maybeSingle();
+    cfg = data;
+  } catch {
+    cfg = null;
+  }
   const notice = sessionStorage.getItem('leave.notice');
   sessionStorage.removeItem('leave.notice');
-  if (notice) {
-    message.textContent = notice;
-    message.hidden = false;
-  }
-  const submit = h('button', { type: 'submit', class: 'btn primary block' }, 'เข้าสู่ระบบ');
 
-  const form = h('form', {
-    class: 'stack',
-    onsubmit: async (e) => {
+  const card = buildLoginCard(cfg, {
+    remembered: getRemember(),
+    onSubmit: async (e) => {
       e.preventDefault();
+      const { code, remember, message, submit } = card;
+      const label = submit.textContent;
       message.hidden = true;
       submit.disabled = true;
       submit.textContent = 'กำลังเข้าสู่ระบบ…';
@@ -38,22 +37,14 @@ export default function login(el) {
         code.focus();
       } finally {
         submit.disabled = false;
-        submit.textContent = 'เข้าสู่ระบบ';
+        submit.textContent = label;
       }
     },
-  },
-  h('div', { class: 'field' }, h('label', { for: 'login-code' }, 'รหัสเข้าใช้'), Object.assign(code, { id: 'login-code' })),
-  h('label', { class: 'check' }, remember, ' จดจำการเข้าสู่ระบบในเครื่องนี้'),
-  h('small', { class: 'hint' }, 'ถ้าใช้เครื่องร่วมกับผู้อื่น อย่าติ๊กช่องนี้'),
-  message,
-  submit);
-
-  mount(el, h('section', { class: 'card narrow login' },
-    h('div', { class: 'login-head' },
-      h('div', { class: 'logo', 'aria-hidden': 'true' }, 'ลา'),
-      h('h1', {}, SITE_NAME),
-      h('p', { class: 'muted' }, SCHOOL_NAME)),
-    form,
-    h('p', { class: 'muted small center' }, 'ลืมรหัส? ติดต่อแอดมิน (ฝ่ายบริหารงานบุคคล) เพื่อตั้งรหัสใหม่')));
-  code.focus();
+  });
+  if (notice) {
+    card.message.textContent = notice;
+    card.message.hidden = false;
+  }
+  mount(el, card.root);
+  card.code.focus();
 }

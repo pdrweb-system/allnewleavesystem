@@ -109,7 +109,7 @@ img { max-width: 100%; }
 }
 .btn:hover { border-color: var(--primary); }
 .btn:disabled { opacity: .55; cursor: progress; }
-.btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary, #fff); }
 .btn.primary:hover { background: var(--primary-hover); }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.danger.ghost { background: transparent; color: var(--danger); }
@@ -295,6 +295,28 @@ details summary { cursor: pointer; color: var(--primary); margin: 6px 0; }
 
 /* ---------- หน้าล็อกอิน ---------- */
 .login-head { text-align: center; margin-bottom: 18px; }
+.login-welcome { margin: 10px 0 0; font-size: 1.02rem; }
+.login-stage { border-radius: 16px; padding: 20px 12px 24px; min-height: 60vh; display: flex; flex-direction: column; justify-content: center; }
+.login-stage.bg-soft { background: var(--primary-soft); }
+.login-stage.bg-gradient { background: linear-gradient(160deg, var(--primary) 0%, var(--primary-hover) 100%); }
+.login-stage.bg-plain { background: transparent; }
+.login-stage .card.narrow { width: 100%; margin: 0 auto; }
+.login-footer { text-align: center; margin: 14px 0 0; font-size: .9rem; color: var(--muted); }
+.login-stage.bg-gradient .login-footer { color: #fff; }
+
+/* ---------- หน้าแอดมิน: ปรับแต่งหน้าล็อกอิน ---------- */
+.lp-layout { display: grid; gap: 16px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 900px) { .lp-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .lp-preview { position: sticky; top: 76px; } }
+.lp-preview .login-stage { min-height: 0; pointer-events: none; }
+.lp-preview-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.lp-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.lp-swatch { width: 44px; height: 44px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--line); cursor: pointer; padding: 0; }
+.lp-swatch[aria-pressed='true'] { box-shadow: 0 0 0 3px var(--text); }
+.lp-seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.lp-seg .btn[aria-pressed='true'] { background: var(--primary-soft); border-color: var(--primary); font-weight: 600; }
+.lp-count { text-align: right; }
+.lp-savebar { position: sticky; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; z-index: 2; }
+input[type='color'] { width: 56px; padding: 2px; }
 .login-head h1 { margin: 8px 0 2px; }
 .logo { width: 64px; height: 64px; border-radius: 18px; background: var(--primary); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 700; }
 
