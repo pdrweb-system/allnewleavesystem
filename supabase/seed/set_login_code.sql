@@ -5,13 +5,12 @@
 do $$
 declare
   v_user_code text := 'ben';        -- รหัสอ้างอิงของบัญชี (คอลัมน์ user_code ในตาราง profiles)
-  v_code      text := '000000';     -- รหัสเข้าใช้ใหม่ ตัวเลข 6 หลัก ห้ามเลขซ้ำหรือเลขเรียง
+  v_code      text := '000000';     -- รหัสเข้าใช้ใหม่ ตั้งแบบไหนก็ได้ (Supabase อาจไม่รับรหัสที่สั้นกว่า Minimum password length ใน Auth settings)
   v_id    uuid;
   v_email text;
 begin
-  if v_code !~ '^[0-9]{6}$' or v_code ~ '^([0-9])\1{5}$'
-     or position(v_code in '01234567890123456789') > 0 or position(v_code in '98765432109876543210') > 0 then
-    raise exception 'รหัสเข้าใช้ต้องเป็นตัวเลข 6 หลัก และไม่ใช่เลขซ้ำหรือเลขเรียง';
+  if v_code = '' or length(v_code) > 72 then
+    raise exception 'รหัสเข้าใช้ต้องไม่ว่างและไม่เกิน 72 ตัว';
   end if;
   select id into v_id from public.profiles where user_code = v_user_code;
   if v_id is null then

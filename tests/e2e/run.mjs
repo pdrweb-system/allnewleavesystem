@@ -223,8 +223,8 @@ try {
     ['t1', 'นางสาวครูหนึ่ง ใจดี', 'ครู', 'teacher', ''],
     ['t2', 'นายครูสอง ทดสอบ', 'ครูผู้ช่วย', 'teacher', '582047'],
     ['t5', 'นางสาวครูห้า ทดสอบ', 'ครู', 'teacher', '150125'], // รหัสรูปวันเกิดใช้ได้
-    ['dep', 'นางรอง ผู้อำนวยการ', 'รองผู้อำนวยการ', 'deputy', ''],
-    ['dir', 'นายผู้อำนวยการ ทดสอบ', 'ผู้อำนวยการ', 'director', ''],
+    ['dep', 'นางรอง ผู้อำนวยการ', 'รองผู้อำนวยการ', 'deputy', 'Dep#2026-ok'], // ตำแหน่งอนุมัติตั้งรหัสอิสระได้
+    ['dir', 'นายผู้อำนวยการ ทดสอบ', 'ผู้อำนวยการ', 'director', 'ผอ.1'], // ภาษาไทย สั้น ตั้งได้
   ]) {
     await admin.getByRole('button', { name: '+ เพิ่มผู้ใช้' }).click();
     const dlg = admin.locator('dialog[open]');
@@ -236,7 +236,7 @@ try {
     await admin.locator('dialog[open] .big-code').first().waitFor();
     const got = (await admin.locator('dialog[open] .big-code').first().textContent()).trim();
     users[key] = { code: got, name };
-    check(/^[0-9]{6}$/.test(got) && (!wanted || got === wanted), `สร้างบัญชี ${key} ได้รหัส 6 หลัก${wanted ? 'ตามที่กำหนด' : 'แบบสุ่ม'}`, got);
+    check((wanted ? got === wanted : /^[0-9]{6}$/.test(got)), `สร้างบัญชี ${key} ได้รหัส${wanted ? 'ตามที่กำหนด' : '6 หลักแบบสุ่ม'}`, got);
     await confirmInDialog(admin, 'จดแล้ว ปิดหน้าต่าง');
     await admin.locator('dialog[open]').waitFor({ state: 'detached' });
   }
@@ -246,7 +246,7 @@ try {
   await dlg.getByLabel('ชื่อ-สกุล (พร้อมคำนำหน้า)').fill('ครูรหัสไม่ดี');
   await dlg.getByLabel('ตำแหน่ง').fill('ครู');
   for (const [bad, want, label] of [
-    ['123456', /เดาง่าย/, 'เลขเรียง'], [users.t2.code, /ใช้ไม่ได้/, 'รหัสซ้ำกับคนอื่น'],
+    ['123456', /เดาง่าย/, 'เลขเรียง'], ['abc12345', /ตัวเลข 6 หลัก/, 'ครูใช้ตัวอักษร'], [users.t2.code, /ใช้ไม่ได้/, 'รหัสซ้ำกับคนอื่น'],
   ]) {
     await dlg.getByLabel('รหัสเข้าใช้').fill(bad);
     await dlg.getByRole('button', { name: 'สร้างบัญชี' }).click();
@@ -424,6 +424,7 @@ try {
   step = 'deputy';
   const dep = await newPage('dep', true);
   await loginOk(dep, users.dep.code);
+  check(!/^[0-9]{6}$/.test(users.dep.code), 'รองฯ เข้าด้วยรหัสอิสระที่แอดมินตั้งเอง (ไม่ใช่เลข 6 หลัก)');
   await dep.goto(`${SITE}/#/approvals`);
   await dep.locator('.leave-card').first().click();
   await dep.getByRole('button', { name: 'อนุมัติ', exact: true }).click();
