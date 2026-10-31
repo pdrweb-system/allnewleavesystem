@@ -12,8 +12,26 @@
 .f-body { margin-top: 2mm; }
 .f-body .indent { text-indent: 14mm; }
 .fill {
-  display: inline-block; min-width: 18mm; padding: 0 2mm; text-align: center;
-  border-bottom: 1px dotted #000; line-height: 1.25; text-indent: 0;
+  display: inline-block; min-width: 18mm; padding: 0 2mm 0.3em; text-align: center;
+  line-height: 1.25; text-indent: 0;
+}
+/* ระยะบรรทัดส่วนคำขอลา: โปร่งเป็นค่าตั้งต้น ใบที่ยาวเกินหน้าหน้าเว็บใส่ compact / compact-2 ให้เอง */
+.f-head .f-right, .f-body { line-height: 1.95; }
+.fill.w-reason { line-height: 1.6; }
+.a4.compact .f-head .f-right, .a4.compact .f-body { line-height: 1.7; }
+.a4.compact-2 .f-head .f-right, .a4.compact-2 .f-body { line-height: 1.55; }
+.a4.compact-2 .fill.w-reason { font-size: 10.5pt; line-height: 1.35; }
+.a4.compact-2 .f-bottom { margin-top: 3mm; }
+.a4.compact-2 .f-box { padding: 2mm 3mm; }
+/* เส้นจุดไข่ปลา: ใช้ตัวจุด (.) ของฟอนต์ ได้จุดกลมระยะเท่ากันเหมือนพิมพ์ด้วยแป้น และคมทั้งบนจอและใน PDF
+   (border แบบ dotted ของเบราว์เซอร์เป็นจุดสี่เหลี่ยมถี่ ๆ ส่วนลาย gradient ถูกแปลงเป็นภาพแตก ๆ ตอนพิมพ์) */
+.fill, .sign-slot { position: relative; z-index: 0; }
+.fill::after, .sign-slot::after {
+  content: '........................................................................................................................................................................................................';
+  content: '........................................................................................................................................................................................................' / '';
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: -1;
+  height: 1em; line-height: 1; overflow: hidden; white-space: nowrap;
+  text-align: left; text-indent: 0; font-weight: 400; pointer-events: none;
 }
 .fill.w-school { min-width: 72mm; }
 .fill.w-d { min-width: 10mm; }
@@ -35,7 +53,7 @@
 .f-regards { margin-bottom: 1mm; }
 .sign { text-align: center; }
 .sign-line { display: flex; align-items: flex-end; justify-content: center; gap: 2mm; }
-.sign-slot { display: inline-flex; align-items: flex-end; justify-content: center; min-width: 52mm; height: 15mm; border-bottom: 1px dotted #000; }
+.sign-slot { display: inline-flex; align-items: flex-end; justify-content: center; min-width: 52mm; height: 15mm; }
 .sig { max-height: 15mm; max-width: 56mm; object-fit: contain; margin-bottom: -2mm; }
 .sig-missing { font-size: 9pt; color: #888; }
 .sign-name { margin-top: 1mm; }
@@ -43,11 +61,13 @@
 .sign-role { text-align: center; font-weight: 600; }
 .sign-date { font-size: 10.5pt; }
 
-.f-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: 6mm; align-items: start; }
-.f-col h2 { font-size: 11.5pt; font-weight: 700; margin: 0 0 1.5mm; }
-.f-col h2 small { font-weight: 400; }
-.f-box { border: 1px solid #000; padding: 3mm 3.5mm; margin-bottom: 4mm; }
-.f-col > .f-box:last-child { margin-bottom: 0; }
+/* ตาราง 2×2: สถิติ | ความเห็นรองฯ  /  ผู้ตรวจสอบ | ผู้บังคับบัญชา — กล่องในแถวเดียวกันสูงเท่ากัน */
+.f-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 6mm; margin-top: 5mm; }
+.f-bottom h2 { font-size: 11.5pt; font-weight: 700; margin: 0 0 1.5mm; }
+.f-box { border: 1px solid #000; padding: 3mm 3.5mm; display: flex; flex-direction: column; }
+.f-box > h2, .f-box > .f-order, .f-box > .f-opinion, .f-opinion .fill { text-align: center; }
+.f-order .tick { margin: 0 3mm; }
+.f-box > .sign { margin-top: auto; } /* ลายเซ็นชิดล่างกล่อง: เส้นลงชื่อของกล่องในแถวเดียวกันอยู่ระดับเดียวกัน */
 .f-stats { width: 100%; border-collapse: collapse; margin-bottom: 3mm; font-size: 10.5pt; caption-side: bottom; table-layout: fixed; }
 .f-stats col.c-type { width: 37%; }
 .f-stats th, .f-stats td { border: 1px solid #000; padding: .8mm 1.2mm; text-align: center; }
@@ -66,7 +86,9 @@
   .no-print, .topbar, .toast, .form-toolbar { display: none !important; }
   #app { padding: 0 !important; max-width: none !important; }
   .a4-wrap { overflow: visible; padding: 0; }
-  .a4 { box-shadow: none; margin: 0; width: 210mm; height: 296mm; min-height: 0; overflow: hidden; break-after: avoid; }
+  /* ใบที่ยาวเกิน A4 จริง ๆ (เหตุผลยาวมาก) ขึ้นหน้าที่ 2 แทนการตัดทิ้ง และเว้นขอบให้หน้าถัดไปด้วย */
+  .a4 { box-shadow: none; margin: 0; width: 210mm; min-height: 0; break-after: avoid;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
