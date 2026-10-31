@@ -55,6 +55,9 @@ export default async function summary(el) {
     mount(body, loading());
     try {
       data = await rpc('admin_summary', { p_round_id: Number(roundSel.value) });
+      // ซ่อนบัญชีบทบาทหัวหน้าฝ่ายบุคลากร/รองผู้อำนวยการ/ผู้อำนวยการ (ซ้ำกับบัญชีครูของคนเดียวกัน)
+      const roles = new Map((await query(sb.from('profiles').select('id, role'))).map((x) => [x.id, x.role]));
+      data.rows = data.rows.filter((r) => (roles.get(r.user_id) ?? 'teacher') === 'teacher');
       data.rows.sort((a, b) => collator.compare(a.full_name, b.full_name));
       const { counts, types, rows, round } = data;
       const table = h('table', { class: 'table responsive' },

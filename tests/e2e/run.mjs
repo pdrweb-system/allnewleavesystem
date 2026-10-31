@@ -526,24 +526,19 @@ try {
 
   // ===== 6. สรุป + Excel + ยอดลาของครู =====
   step = 'summary';
-  // หัวหน้าฝ่าย (ben) และรองฯ ไม่มีหน้าสรุป · ผอ. ใช้ได้
-  check(await admin.locator('#topbar a[href="#/summary"]').count() === 0, 'หัวหน้าฝ่ายไม่มีเมนูสรุป');
   await admin.goto(`${SITE}/#/summary`);
-  check(await visible(admin.getByText('ไม่มีสิทธิ์เข้าหน้านี้')), 'หัวหน้าฝ่ายเปิดหน้าสรุปไม่ได้');
-  check(await dep.locator('#topbar a[href="#/summary"]').count() === 0, 'รองฯ ไม่มีเมนูสรุป');
-  await dep.goto(`${SITE}/#/summary`);
-  check(await visible(dep.getByText('ไม่มีสิทธิ์เข้าหน้านี้')), 'รองฯ เปิดหน้าสรุปไม่ได้');
-  check(await dir.locator('#topbar a[href="#/summary"]').count() >= 1, 'ผอ. มีเมนูสรุป');
-  await dir.goto(`${SITE}/#/summary`);
-  await dir.locator('.stats').waitFor();
-  const stats = await dir.locator('.stat').allTextContents();
+  await admin.locator('.stats').waitFor();
+  const stats = await admin.locator('.stat').allTextContents();
   check(stats[0].startsWith('2') && stats[4].startsWith('2'), 'การ์ดสรุป: ทั้งหมด 2 ใบ เสร็จแล้ว 2', stats.join(' | '));
-  const [download] = await Promise.all([dir.waitForEvent('download'), dir.getByRole('button', { name: 'ส่งออก Excel' }).click()]);
+  const dbRoles = await admin.evaluate(async () => (await import('./js/supabase.js')).sb.from('profiles').select('role').then((r) => r.data.map((x) => x.role)));
+  const teacherCount = dbRoles.filter((r) => r === 'teacher').length;
+  check(dbRoles.length > teacherCount && (await admin.locator('.table tbody tr').count()) === teacherCount, `ตารางสรุปแสดงเฉพาะบัญชีครู (${teacherCount} จาก ${dbRoles.length})`);
+  const [download] = await Promise.all([admin.waitForEvent('download'), admin.getByRole('button', { name: 'ส่งออก Excel' }).click()]);
   await download.saveAs(path.join(OUT, 'summary.xlsx'));
   check(true, `ดาวน์โหลด ${download.suggestedFilename()}`);
-  await shot(dir, '09-summary-desktop');
+  await shot(admin, '09-summary-desktop');
   const sumMobile = await newPage('sum-mobile', true);
-  await loginOk(sumMobile, users.dir.code, APPROVALS_HOME);
+  await loginOk(sumMobile, ADMIN_CODE, APPROVALS_HOME);
   await sumMobile.goto(`${SITE}/#/summary`);
   await sumMobile.locator('.stats').waitFor();
   await shot(sumMobile, '10-summary-mobile');

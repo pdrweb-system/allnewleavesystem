@@ -1,5 +1,5 @@
 import { sb } from './supabase.js';
-import { auth, loadSession, signOut, canFile, canViewAll, isApprover, hasHome, canSummary, landingPath, ROLE_LABEL } from './auth.js';
+import { auth, loadSession, signOut, canFile, canViewAll, isApprover, hasHome, landingPath, ROLE_LABEL } from './auth.js';
 import { route, matchRoute, navigate, startRouter, currentPath } from './router.js';
 import { h, mount, errorBox, loading } from './ui.js';
 import { clearCaches } from './api.js';
@@ -19,7 +19,7 @@ route('/leave/new', view('./views/leave-new.js'), { can: canFile, title: 'ยื
 route('/leave/:id', view('./views/leave-detail.js'), { title: 'รายละเอียดใบลา' });
 route('/leave/:id/form', view('./views/leave-form.js'), { title: 'ใบลา', printable: true });
 route('/approvals', view('./views/approvals.js'), { can: canViewAll, title: 'อนุมัติใบลา' });
-route('/summary', view('./views/summary.js'), { can: canSummary, title: 'สรุปการลา' });
+route('/summary', view('./views/summary.js'), { can: canViewAll, title: 'สรุปการลา' });
 route('/admin/users', view('./views/admin-users.js'), { can: (p) => p.is_admin, title: 'จัดการผู้ใช้' });
 route('/admin/settings', view('./views/admin-settings.js'), { can: (p) => p.is_admin, title: 'ตั้งค่าระบบ' });
 
@@ -36,7 +36,7 @@ function navLinks(p) {
   if (hasHome(p)) links.push(['#/', 'หน้าหลัก']);
   if (canFile(p)) links.push(['#/leave/new', 'ยื่นใบลา']);
   if (!isApprover(p) && canViewAll(p)) links.push(['#/approvals', 'ใบลาทั้งหมด']);
-  if (canSummary(p)) links.push(['#/summary', 'สรุป']);
+  if (canViewAll(p)) links.push(['#/summary', 'สรุป']);
   if (p.is_admin) links.push(['#/admin/users', 'ผู้ใช้'], ['#/admin/settings', 'ตั้งค่า']);
   return links;
 }
