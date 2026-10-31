@@ -192,10 +192,11 @@ async function login(page, code) {
   await page.getByLabel('รหัสเข้าใช้').fill(code);
   await page.getByRole('button', { name: 'เข้าสู่ระบบ' }).click();
 }
-async function loginOk(page, code) {
+async function loginOk(page, code, home = /#\/$/) {
   await login(page, code);
-  await page.waitForURL(/#\/$/);
+  await page.waitForURL(home);
 }
+const ADMIN_HOME = /#\/admin\/users/; // บัญชีแอดมินไม่มีหน้าหลัก
 async function confirmInDialog(page, label) {
   await page.locator('dialog[open]').getByRole('button', { name: label, exact: true }).click();
 }
@@ -214,8 +215,15 @@ try {
   check(/ไม่ถูกต้อง/.test(await textOf(admin.locator('.alert.error'))), 'รหัสสั้นที่ไม่มีในระบบเข้าไม่ได้ (แจ้งว่ารหัสไม่ถูกต้อง)');
   await login(admin, '739159');
   check(/ไม่ถูกต้อง/.test(await textOf(admin.locator('.alert.error'))), 'รหัสผิดแสดงข้อความภาษาไทย');
-  await loginOk(admin, ADMIN_CODE);
-  check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ')), 'บัญชีเก่าที่ตั้งรหัสด้วย set_login_code.sql เข้าหน้าหลักได้');
+  await loginOk(admin, ADMIN_CODE, ADMIN_HOME);
+  check(await visible(admin.getByRole('heading', { name: 'จัดการผู้ใช้' })), 'บัญชีเก่าที่ตั้งรหัสด้วย set_login_code.sql เข้าได้ และแอดมินเข้าหน้าจัดการผู้ใช้แทนหน้าหลัก');
+  check(await admin.locator('#topbar a[href="#/"]').count() === 0 && await admin.locator('#topbar a[href="#/leave/new"]').count() === 0,
+    'เมนูของบัญชีแอดมินไม่มี หน้าหลัก และ ยื่นใบลา');
+  await admin.goto(`${SITE}/#/leave/new`);
+  check(await visible(admin.getByText('ไม่มีสิทธิ์เข้าหน้านี้')), 'บัญชีแอดมินเปิดหน้ายื่นใบลาไม่ได้');
+  await admin.goto(`${SITE}/#/`);
+  await admin.waitForURL(ADMIN_HOME);
+  check(true, 'แอดมินเข้าหน้าหลักแล้วถูกพาไปหน้าจัดการผู้ใช้');
 
   await admin.goto(`${SITE}/#/admin/users`);
   // t2 แอดมินกำหนดรหัสเอง คนอื่นให้ระบบสุ่ม
@@ -319,6 +327,7 @@ try {
   await loginOk(t1, users.t1.code);
   check(await visible(t1.getByText('ยอดการลาของฉัน')), 'ครูเข้าด้วยรหัส 6 หลักได้ทันที');
   check(await t1.getByText('เปลี่ยนรหัสผ่าน').count() === 0, 'ไม่มีเมนูเปลี่ยนรหัสผ่าน');
+  check(await t1.locator('#topbar a[href="#/"]').count() >= 1 && await t1.locator('#topbar a[href="#/leave/new"]').count() >= 1, 'บัญชีครูยังมีเมนูหน้าหลักและยื่นใบลา');
   await shot(t1, '04-home-mobile');
   await t1.getByRole('link', { name: '+ ยื่นใบลา' }).click();
   await t1.waitForURL(/#\/leave\/new/);
@@ -512,7 +521,7 @@ try {
   check(true, `ดาวน์โหลด ${download.suggestedFilename()}`);
   await shot(admin, '09-summary-desktop');
   const sumMobile = await newPage('sum-mobile', true);
-  await loginOk(sumMobile, ADMIN_CODE);
+  await loginOk(sumMobile, ADMIN_CODE, ADMIN_HOME);
   await sumMobile.goto(`${SITE}/#/summary`);
   await sumMobile.locator('.stats').waitFor();
   await shot(sumMobile, '10-summary-mobile');
@@ -557,13 +566,13 @@ try {
   await confirmInDialog(admin, 'จดแล้ว ปิดหน้าต่าง');
   await admin.waitForURL(/#\/login/);
   check(/เปลี่ยนรหัสของคุณแล้ว/.test(await textOf(admin.locator('.alert.error'))), 'เปลี่ยนรหัสของตัวเองแล้วพาไปล็อกอินใหม่พร้อมข้อความ');
-  await loginOk(admin, '846213');
-  check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ')), 'เข้าด้วยรหัสใหม่ได้');
+  await loginOk(admin, '846213', ADMIN_HOME);
+  check(await visible(admin.getByRole('heading', { name: 'จัดการผู้ใช้' })), 'เข้าด้วยรหัสใหม่ได้');
 
   // ===== 9. แคชเบราว์เซอร์ถือ api.js ตัวเก่า (ไม่มี deleteLeave) แต่ home.js ตัวใหม่ → โหลดไฟล์ใหม่แล้วรีเฟรชให้เอง =====
   step = 'stale-cache';
   let apiHits = 0;
-  await admin.context().route('**/js/api.js', async (route) => {
+  await t1b.context().route('**/js/api.js', async (route) => {
     apiHits += 1;
     if (apiHits === 1) {
       const real = fs.readFileSync(path.join(ROOT, 'js/api.js'), 'utf8');
@@ -571,8 +580,8 @@ try {
     }
     return route.continue();
   });
-  await admin.reload();
-  check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ'), 15000) && apiHits >= 2,
+  await t1b.reload();
+  check(await visible(t1b.getByText('ยอดการลาของฉัน'), 15000) && apiHits >= 2,
     'ไฟล์ api.js เก่าในแคช: เว็บโหลดไฟล์ใหม่แล้วรีเฟรชเองจนใช้งานได้', `โหลด api.js ${apiHits} ครั้ง`);
 } catch (e) {
   check(false, 'ข้อผิดพลาดระหว่างทดสอบ', e.stack);
