@@ -1,6 +1,6 @@
-import { h, mount, loading, toast, errorText, errorBox, confirmDialog, field } from '../ui.js';
+import { h, mount, loading, toast, errorText, errorBox, confirmDialog, dialog, field } from '../ui.js';
 import { sb } from '../supabase.js';
-import { rpc, query, clearCaches } from '../api.js';
+import { rpc, query, clearCaches, callFunction } from '../api.js';
 import { thDate, thDateTime, todayISO, parseFlexibleDate, parseISO } from '../lib/thai-date.js';
 
 const run = async (fn, okMessage) => {
@@ -15,6 +15,82 @@ const run = async (fn, okMessage) => {
 };
 
 // ---------------- วันหยุด ----------------
+// ดึงวันหยุดราชการปีนี้และปีหน้า (พ.ศ.) จาก calendar.kapook.com ผ่าน Edge Function holidays-import
+// แสดงให้ตรวจก่อน เพิ่มเฉพาะวันที่ยังไม่มีในระบบ (วันที่มีแล้วไม่แก้ชื่อเดิม)
+async function importGovHolidays(onDone) {
+  const yearBE = parseISO(todayISO()).y + 543;
+  const years = [yearBE, yearBE + 1];
+  let waitBox = null;
+  const waiting = dialog({ title: 'กำลังดึงวันหยุดราชการ…', body: [loading()], actions: [], onOpen: (d) => { waitBox = d; } });
+  let data;
+  let existing;
+  try {
+    [data, existing] = await Promise.all([
+      callFunction('holidays-import', { years }),
+      query(sb.from('holidays').select('day, name')
+        .gte('day', `${years[0] - 543}-01-01`).lte('day', `${years[1] - 543}-12-31`)),
+    ]);
+  } catch (e) {
+    toast(errorText(e), 'error');
+    return;
+  } finally {
+    waitBox?.dispatchEvent(new Event('cancel')); // ปิดหน้าต่างรอ
+    await waiting;
+  }
+  const have = Object.fromEntries(existing.map((r) => [r.day, r.name]));
+  const picks = [];
+  const blocks = data.results.map((r) => h('section', { class: 'stack' },
+    h('h3', {}, `พ.ศ. ${r.year} `, /^https:\/\//.test(r.url)
+      ? h('small', { class: 'muted' }, h('a', { href: r.url, target: '_blank', rel: 'noopener noreferrer' }, 'ที่มา'))
+      : null),
+    r.error ? h('p', { class: 'alert error' }, r.error) : null,
+    r.holidays.length
+      ? h('ul', { class: 'plain-list' }, r.holidays.map((x) => {
+        const box = h('input', { type: 'checkbox', checked: !have[x.date], disabled: !!have[x.date] });
+        if (!have[x.date]) picks.push({ box, row: { day: x.date, name: x.name } });
+        return h('li', {}, h('label', { class: 'check' }, box, ' ',
+          h('strong', {}, thDate(x.date, { weekday: true })), ` — ${x.name}`,
+          have[x.date] ? h('small', { class: 'muted' }, ` (มีแล้ว: ${have[x.date]})`) : null));
+      }))
+      : null));
+  const msg = h('div', { class: 'alert error', role: 'alert', hidden: true });
+  let added = 0;
+  const ok = await dialog({
+    title: 'วันหยุดราชการจากปฏิทินกระปุก',
+    body: [
+      h('p', { class: 'muted small' }, 'เฉพาะวันหยุดราชการ (ไม่รวมวันหยุดเฉพาะธนาคาร) — เลือกวันที่จะเพิ่ม วันที่มีในระบบแล้วจะไม่ถูกแก้ไข'),
+      blocks, msg,
+    ],
+    actions: [
+      { label: 'ยกเลิก', value: false },
+      {
+        label: 'เพิ่มวันที่เลือก', value: true, kind: 'primary',
+        validate: async () => {
+          const rows = picks.filter((p) => p.box.checked).map((p) => p.row);
+          if (!rows.length) {
+            msg.textContent = 'ยังไม่ได้เลือกวันที่จะเพิ่ม';
+            msg.hidden = false;
+            return false;
+          }
+          try {
+            await query(sb.from('holidays').upsert(rows, { onConflict: 'day', ignoreDuplicates: true }));
+            added = rows.length;
+            return true;
+          } catch (e) {
+            msg.textContent = errorText(e);
+            msg.hidden = false;
+            return false;
+          }
+        },
+      },
+    ],
+  });
+  if (ok) {
+    toast(`เพิ่มวันหยุดราชการ ${added} วันแล้ว`);
+    onDone();
+  }
+}
+
 async function holidaysSection() {
   const box = h('section', { class: 'card stack' });
   const yearNow = parseISO(todayISO()).y;
@@ -74,7 +150,11 @@ async function holidaysSection() {
     h('p', { class: 'muted small' }, 'ระบบไม่นับวันเหล่านี้เป็นวันลา (ยกเว้นประเภทที่นับทุกวัน) — ใบที่ยื่นไปแล้วไม่ถูกคำนวณใหม่ จึงควรกรอกล่วงหน้า'),
     list,
     h('div', { class: 'grid-2' }, field('วันที่', day), field('ชื่อวันหยุด', name)),
-    h('button', { type: 'button', class: 'btn', onclick: addOne }, 'เพิ่มวันหยุด'),
+    h('div', { class: 'row gap wrap' },
+      h('button', { type: 'button', class: 'btn', onclick: addOne }, 'เพิ่มวันหยุด'),
+      h('button', { type: 'button', class: 'btn', onclick: () => importGovHolidays(load) }, 'ดึงวันหยุดราชการ')),
+    h('p', { class: 'muted small' }, '"ดึงวันหยุดราชการ" ดึงวันหยุดราชการปีนี้และปีหน้าจาก calendar.kapook.com ให้ตรวจก่อนเพิ่ม '
+      + '— วันหยุดเฉพาะของโรงเรียนเพิ่มเองได้ตามปกติ'),
     h('details', {}, h('summary', {}, 'เพิ่มหลายวันพร้อมกัน'),
       field('วางรายการ บรรทัดละวัน: วันที่ เว้นวรรค ชื่อวันหยุด (ปี พ.ศ. หรือ ค.ศ. ก็ได้)', bulk),
       h('button', { type: 'button', class: 'btn', onclick: addBulk }, 'เพิ่มทั้งหมด')));
