@@ -78,6 +78,12 @@ await gateway.listen();
 start(DENO, ['run', '--allow-net', '--allow-env', '--allow-read', 'supabase/functions/admin-users/index.ts'], {
   SUPABASE_URL: 'http://127.0.0.1:54321', SUPABASE_SERVICE_ROLE_KEY: gateway.SERVICE_JWT(),
 });
+// ดึงวันหยุดจากไฟล์ตัวอย่างที่โครงเดียวกับ calendar.kapook.com แทนเว็บจริง
+start(DENO, ['run', '--allow-net', '--allow-env', '--allow-read', 'tests/e2e/serve-function.ts', '8001',
+  'supabase/functions/holidays-import/index.ts'], {
+  SUPABASE_URL: 'http://127.0.0.1:54321', SUPABASE_SERVICE_ROLE_KEY: gateway.SERVICE_JWT(),
+  HOLIDAY_SOURCE_URL: `${SITE}/supabase/tests/fixtures/kapook-{year}.html`,
+});
 start('python3', ['-m', 'http.server', '8088', '--bind', '127.0.0.1', '--directory', ROOT]);
 
 async function waitFor(url, ok = (r) => r.status < 500) {
@@ -90,6 +96,7 @@ async function waitFor(url, ok = (r) => r.status < 500) {
   throw new Error(`timeout waiting for ${url}`);
 }
 await waitFor('http://127.0.0.1:54330/');
+await waitFor('http://127.0.0.1:8001/');
 await waitFor('http://127.0.0.1:8000/', () => true);
 await waitFor(`${SITE}/index.html`);
 
@@ -291,6 +298,19 @@ try {
   check(/เพิ่ม\/แก้ไข 2 วัน/.test(await toastText(admin, /เพิ่ม\/แก้ไข/)), 'เพิ่มวันหยุดแบบหลายบรรทัด');
   await admin.getByText('วันศุกร์ที่ 23 ตุลาคม 2569').waitFor();
   await shot(admin, '03-admin-settings');
+
+  // ดึงวันหยุดราชการปีนี้และปีหน้า (2569, 2570) — วันที่มีอยู่แล้ว 2 วันต้องไม่ถูกเพิ่ม/แก้ชื่อ
+  await admin.getByRole('button', { name: 'ดึงวันหยุดราชการ' }).click();
+  const hol = admin.locator('dialog[open]', { hasText: 'วันหยุดราชการจากปฏิทินกระปุก' });
+  await hol.waitFor({ timeout: 20000 });
+  check(await hol.locator('input[type=checkbox]').count() === 44, 'ดึงวันหยุดราชการ 2 ปีได้ 44 วัน (ปีละ 22)');
+  check(await hol.locator('input[type=checkbox]:disabled').count() === 2, 'วันที่มีในระบบแล้ว 2 วันเลือกซ้ำไม่ได้');
+  check(!(await hol.textContent()).includes('วันแรงงานแห่งชาติ'), 'ไม่รวมวันหยุดเฉพาะธนาคาร');
+  await shot(admin, '03b-holiday-import');
+  await hol.getByRole('button', { name: 'เพิ่มวันที่เลือก' }).click();
+  check(/เพิ่มวันหยุดราชการ 42 วัน/.test(await toastText(admin, /วันหยุดราชการ/)), 'เพิ่มวันหยุดราชการ 42 วัน');
+  check(psql('postgres', DB, ['-tAc', "select count(*) || '|' || (select name from public.holidays where day = '2026-12-05') from public.holidays"]).trim()
+    === '44|วันพ่อแห่งชาติ', 'วันหยุดรวม 44 วัน และชื่อที่แอดมินกรอกเองไม่ถูกเปลี่ยน');
 
   // ===== 2. ครู 1 ล็อกอินครั้งแรก + ยื่นใบลา =====
   step = 'teacher1';

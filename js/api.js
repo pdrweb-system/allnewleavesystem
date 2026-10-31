@@ -67,9 +67,9 @@ export function fileUrl(bucket, path) {
   return blobUrls.get(key);
 }
 
-// เรียก Edge Function admin-users แล้วแปลง error เป็นข้อความไทยจากฟังก์ชัน
-export async function adminUsers(body) {
-  const { data, error } = await sb.functions.invoke('admin-users', { body });
+// เรียก Edge Function แล้วแปลง error เป็นข้อความไทยจากฟังก์ชัน
+export async function callFunction(name, body) {
+  const { data, error } = await sb.functions.invoke(name, { body });
   if (error) {
     let message = error.message;
     try {
@@ -82,3 +82,5 @@ export async function adminUsers(body) {
   }
   return data;
 }
+
+export const adminUsers = (body) => callFunction('admin-users', body);

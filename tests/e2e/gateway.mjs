@@ -14,7 +14,10 @@ const pg = createRequire(path.join(process.env.E2E_TOOLS ?? '.', 'package.json')
 
 const PORT = Number(process.env.GATEWAY_PORT ?? 54321);
 const POSTGREST = process.env.POSTGREST_URL ?? 'http://127.0.0.1:54330';
-const FUNCTIONS = { 'admin-users': process.env.ADMIN_USERS_URL ?? 'http://127.0.0.1:8000' };
+const FUNCTIONS = {
+  'admin-users': process.env.ADMIN_USERS_URL ?? 'http://127.0.0.1:8000',
+  'holidays-import': process.env.HOLIDAYS_IMPORT_URL ?? 'http://127.0.0.1:8001',
+};
 const SECRET = process.env.JWT_SECRET;
 const STORAGE_DIR = process.env.STORAGE_DIR;
 const PUBLISHABLE = process.env.PUBLISHABLE_KEY;
