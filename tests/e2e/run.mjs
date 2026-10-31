@@ -222,6 +222,7 @@ try {
   for (const [key, name, pos, role, wanted] of [
     ['t1', 'นางสาวครูหนึ่ง ใจดี', 'ครู', 'teacher', ''],
     ['t2', 'นายครูสอง ทดสอบ', 'ครูผู้ช่วย', 'teacher', '582047'],
+    ['t5', 'นางสาวครูห้า ทดสอบ', 'ครู', 'teacher', '150125'], // รหัสรูปวันเกิดใช้ได้
     ['dep', 'นางรอง ผู้อำนวยการ', 'รองผู้อำนวยการ', 'deputy', ''],
     ['dir', 'นายผู้อำนวยการ ทดสอบ', 'ผู้อำนวยการ', 'director', ''],
   ]) {
@@ -239,13 +240,13 @@ try {
     await confirmInDialog(admin, 'จดแล้ว ปิดหน้าต่าง');
     await admin.locator('dialog[open]').waitFor({ state: 'detached' });
   }
-  // รหัสเดาง่าย / ดูเหมือนวันเกิด / ซ้ำกับคนอื่น ต้องไม่ได้
+  // รหัสเดาง่าย / ซ้ำกับคนอื่น ต้องไม่ได้ (วันเกิดใช้ได้)
   await admin.getByRole('button', { name: '+ เพิ่มผู้ใช้' }).click();
   let dlg = admin.locator('dialog[open]');
   await dlg.getByLabel('ชื่อ-สกุล (พร้อมคำนำหน้า)').fill('ครูรหัสไม่ดี');
   await dlg.getByLabel('ตำแหน่ง').fill('ครู');
   for (const [bad, want, label] of [
-    ['123456', /เดาง่าย/, 'เลขเรียง'], ['150125', /วันที่/, 'วันเกิด'], [users.t2.code, /ใช้ไม่ได้/, 'รหัสซ้ำกับคนอื่น'],
+    ['123456', /เดาง่าย/, 'เลขเรียง'], [users.t2.code, /ใช้ไม่ได้/, 'รหัสซ้ำกับคนอื่น'],
   ]) {
     await dlg.getByLabel('รหัสเข้าใช้').fill(bad);
     await dlg.getByRole('button', { name: 'สร้างบัญชี' }).click();

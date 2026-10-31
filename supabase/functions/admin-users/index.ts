@@ -42,19 +42,11 @@ function randomChars(alphabet: string, length: number): string {
   return out;
 }
 
-// ดูเหมือนวันที่ (วันเกิด) แบบ ววดดปป / ปปดดวว / ดดววปป (ปีสองหลัก ทั้ง ค.ศ. และ พ.ศ.)
-function looksLikeDate(c: string): boolean {
-  const ok = (d: number, m: number) => d >= 1 && d <= 31 && m >= 1 && m <= 12;
-  const n = (a: number, b: number) => Number(c.slice(a, b));
-  return ok(n(0, 2), n(2, 4)) || ok(n(4, 6), n(2, 4)) || ok(n(2, 4), n(0, 2));
-}
-
 function codeProblem(code: string): string | null {
   if (!/^[0-9]{6}$/.test(code)) return 'รหัสเข้าใช้ต้องเป็นตัวเลข 6 หลัก';
   if (/^([0-9])\1{5}$/.test(code) || '01234567890123456789'.includes(code) || '98765432109876543210'.includes(code)) {
     return 'รหัสนี้เดาง่ายเกินไป กรุณาใช้รหัสอื่น';
   }
-  if (looksLikeDate(code)) return 'รหัสนี้ดูเหมือนวันที่ (เช่นวันเกิด) ห้ามใช้ กรุณาใช้รหัสอื่น';
   return null;
 }
 
