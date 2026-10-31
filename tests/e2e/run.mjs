@@ -479,6 +479,12 @@ try {
   await t1.waitForFunction(() => [...document.querySelectorAll('img.sig')].length === 4
     && [...document.querySelectorAll('img.sig')].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 15000 });
   check(true, 'ใบลามีลายเซ็นครบ 4 (ผู้ลา + หัวหน้าฝ่าย + รองฯ + ผอ.)');
+  const sigGeo = await t1.locator('.a4 img.sig').evaluateAll((imgs) => imgs.map((i) => {
+    const slot = i.closest('.sign-slot').getBoundingClientRect();
+    const r = i.getBoundingClientRect();
+    return { off: Math.abs((r.left + r.right) / 2 - (slot.left + slot.right) / 2), gap: slot.bottom - r.bottom };
+  }));
+  check(sigGeo.length === 4 && sigGeo.every((g) => g.off < 1.5 && g.gap >= 0 && g.gap < 12), 'ลายเซ็นทั้ง 4 อยู่กลางช่องและวางบนเส้นจุด (ไม่ลงต่ำกว่าเส้น)', JSON.stringify(sigGeo));
   const formText = await t1.locator('.a4').textContent();
   for (const want of ['☑ ป่วย', 'มีกำหนด 2 วัน', '22 ตุลาคม 2569', '26 ตุลาคม 2569', 'นางสาวครูหนึ่ง ใจดี', '☑ อนุญาต', 'เห็นควรอนุญาตดำเนินการตามคำขอ']) {
     check(formText.includes(want), `ใบลามี "${want}"`);

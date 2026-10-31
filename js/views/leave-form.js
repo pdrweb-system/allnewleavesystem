@@ -24,7 +24,50 @@ function statCell(times, days) {
 
 async function sigImg(bucket, path, alt) {
   const url = await fileUrl(bucket, path);
-  return url ? h('img', { class: 'sig', src: url, alt }) : h('span', { class: 'sig-missing' }, '(ไม่พบภาพลายเซ็น)');
+  if (!url) return h('span', { class: 'sig-missing' }, '(ไม่พบภาพลายเซ็น)');
+  return h('img', { class: 'sig', src: await cropToInk(url) ?? url, alt });
+}
+
+// ตัดขอบว่าง (โปร่งใสหรือขาว) รอบลายเซ็นออก เพื่อให้จัดกลางช่องและวางบนเส้นจุดได้พอดีไม่ว่าไฟล์จะเว้นขอบเท่าไร
+async function cropToInk(url) {
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const { naturalWidth: w, naturalHeight: ht } = img;
+    if (!w || !ht || w * ht > 12e6) return null;
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = ht;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const { data } = ctx.getImageData(0, 0, w, ht);
+    let x0 = w, y0 = ht, x1 = -1, y1 = -1;
+    for (let y = 0; y < ht; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const ink = data[i + 3] > 24 && (data[i] < 235 || data[i + 1] < 235 || data[i + 2] < 235);
+        if (ink) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x1 < 0) return null; // ภาพว่าง ใช้ภาพเดิม
+    const pad = 2;
+    x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(ht - 1, y1 + pad);
+    if (x0 === 0 && y0 === 0 && x1 === w - 1 && y1 === ht - 1) return null;
+    const out = document.createElement('canvas');
+    out.width = x1 - x0 + 1;
+    out.height = y1 - y0 + 1;
+    out.getContext('2d').drawImage(cv, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+    const blob = await new Promise((res) => out.toBlob(res, 'image/png'));
+    return blob ? URL.createObjectURL(blob) : null;
+  } catch {
+    return null; // ตัดขอบไม่ได้ก็แสดงภาพเดิม
+  }
 }
 
 // ลายเซ็น 1 ชุด: (ลงชื่อ) / (ชื่อ) แล้วผู้อนุมัติมีบรรทัด ตำแหน่ง ... และ วันที่ ... / ... / ... เพิ่ม

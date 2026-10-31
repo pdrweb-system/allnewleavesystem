@@ -56,8 +56,9 @@
 .f-regards { margin-bottom: 1mm; }
 .sign { text-align: center; }
 .sign-line { display: flex; align-items: flex-end; justify-content: center; gap: 2mm; }
-.sign-slot { display: inline-flex; align-items: flex-end; justify-content: center; min-width: 52mm; height: 15mm; }
-.sig { max-height: 15mm; max-width: 56mm; object-fit: contain; margin-bottom: -2mm; }
+.sign-slot { display: inline-flex; align-items: flex-end; justify-content: center; min-width: 52mm; height: 16mm; }
+/* ภาพลายเซ็นถูกตัดขอบว่างแล้ว: อยู่กลางช่อง ขอบล่างวางบนเส้นจุด (ไม่ลงไปทับ) */
+.sig { max-height: 15mm; max-width: 100%; object-fit: contain; margin-bottom: 0.9mm; }
 .sig-missing { font-size: 9pt; color: #888; }
 .sign-name { margin-top: 1mm; }
 .sign-row { display: flex; align-items: baseline; gap: 1.5mm; margin-top: 0.5mm; white-space: nowrap; }
