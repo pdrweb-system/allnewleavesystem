@@ -48,6 +48,12 @@ function row(label: string, value: string) {
   };
 }
 
+// ผสมสีกับสีขาวให้อ่อนลง (t = สัดส่วนสีขาว) ใช้กับพื้นปุ่มเพื่อให้ตัวอักษรสีดำอ่านชัด
+function lighten(hex: string, t: number): string {
+  const c = [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - t) + 255 * t));
+  return `#${c.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+}
+
 function buildMessage(event: string, p: Payload, siteUrl: string) {
   const dateText = p.from_date === p.to_date
     ? thDate(p.from_date)
@@ -111,7 +117,7 @@ function buildMessage(event: string, p: Payload, siteUrl: string) {
       type: 'box', layout: 'vertical', paddingAll: '10px',
       // ปุ่มมาตรฐานของ LINE เปลี่ยนสีตัวอักษรไม่ได้ จึงใช้กล่องกดได้ที่มีตัวอักษรสีดำตัวหนาแทน (ทุกการ์ด)
       contents: [{
-        type: 'box', layout: 'vertical', backgroundColor: color, cornerRadius: 'md', paddingAll: '10px',
+        type: 'box', layout: 'vertical', backgroundColor: lighten(color, 0.55), borderWidth: '2px', borderColor: color, cornerRadius: 'md', paddingAll: '10px',
         action: { type: 'uri', ...button },
         contents: [{ type: 'text', text: button.label, color: '#000000', weight: 'bold', align: 'center', size: 'md' }],
       }],
