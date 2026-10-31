@@ -46,7 +46,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'supabase/migrations')).sort()) {
 // แอดมินแบบบัญชีเก่า (ชื่อผู้ใช้ + ติดธงเปลี่ยนรหัส) แล้วตั้งรหัสเข้าใช้ด้วย supabase/seed/set_login_code.sql
 // เหมือนที่ต้องทำกับบัญชีจริงที่สร้างไว้ก่อนเปลี่ยนมาใช้รหัส 8 หลัก
 const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
-const ADMIN_CODE = '73915820';
+const ADMIN_CODE = '739158';
 psql('postgres', DB, ['-c', `
   insert into auth.users (id, email, encrypted_password, email_confirmed_at)
   values ('${ADMIN_ID}', 'ben@leave.pdr.invalid', extensions.crypt('Admin-pass-1', extensions.gen_salt('bf')), now());
@@ -55,7 +55,7 @@ psql('postgres', DB, ['-c', `
   insert into public.profiles (id, user_code, full_name, position, role, is_admin, must_change_password)
   values ('${ADMIN_ID}', 'ben', 'นายเบ็น ทดสอบระบบ', 'ครูชำนาญการ', 'hr', true, true);`]);
 psql('postgres', DB, ['-c', fs.readFileSync(path.join(ROOT, 'supabase/seed/set_login_code.sql'), 'utf8')
-  .replace("v_code      text := '00000000'", `v_code      text := '${ADMIN_CODE}'`)]);
+  .replace("v_code      text := '000000'", `v_code      text := '${ADMIN_CODE}'`)]);
 
 // ---------------- บริการ ----------------
 const procs = [];
@@ -211,8 +211,8 @@ try {
   check(await admin.locator('input[autocomplete="username"]').count() === 0, 'หน้าล็อกอินไม่มีช่องชื่อผู้ใช้');
   await login(admin, '1234');
   check(await admin.locator('#login-code').evaluate((i) => !i.checkValidity()) && /#\/login/.test(admin.url()),
-    'รหัสไม่ครบ 8 หลักส่งไม่ได้ (เบราว์เซอร์แจ้งเตือน)');
-  await login(admin, '73915821');
+    'รหัสไม่ครบ 6 หลักส่งไม่ได้ (เบราว์เซอร์แจ้งเตือน)');
+  await login(admin, '739159');
   check(/ไม่ถูกต้อง/.test(await textOf(admin.locator('.alert.error'))), 'รหัสผิดแสดงข้อความภาษาไทย');
   await loginOk(admin, ADMIN_CODE);
   check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ')), 'บัญชีเก่าที่ตั้งรหัสด้วย set_login_code.sql เข้าหน้าหลักได้');
@@ -221,7 +221,7 @@ try {
   // t2 แอดมินกำหนดรหัสเอง คนอื่นให้ระบบสุ่ม
   for (const [key, name, pos, role, wanted] of [
     ['t1', 'นางสาวครูหนึ่ง ใจดี', 'ครู', 'teacher', ''],
-    ['t2', 'นายครูสอง ทดสอบ', 'ครูผู้ช่วย', 'teacher', '58204716'],
+    ['t2', 'นายครูสอง ทดสอบ', 'ครูผู้ช่วย', 'teacher', '582047'],
     ['dep', 'นางรอง ผู้อำนวยการ', 'รองผู้อำนวยการ', 'deputy', ''],
     ['dir', 'นายผู้อำนวยการ ทดสอบ', 'ผู้อำนวยการ', 'director', ''],
   ]) {
@@ -235,7 +235,7 @@ try {
     await admin.locator('dialog[open] .big-code').first().waitFor();
     const got = (await admin.locator('dialog[open] .big-code').first().textContent()).trim();
     users[key] = { code: got, name };
-    check(/^[0-9]{8}$/.test(got) && (!wanted || got === wanted), `สร้างบัญชี ${key} ได้รหัส 8 หลัก${wanted ? 'ตามที่กำหนด' : 'แบบสุ่ม'}`, got);
+    check(/^[0-9]{6}$/.test(got) && (!wanted || got === wanted), `สร้างบัญชี ${key} ได้รหัส 6 หลัก${wanted ? 'ตามที่กำหนด' : 'แบบสุ่ม'}`, got);
     await confirmInDialog(admin, 'จดแล้ว ปิดหน้าต่าง');
     await admin.locator('dialog[open]').waitFor({ state: 'detached' });
   }
@@ -245,7 +245,7 @@ try {
   await dlg.getByLabel('ชื่อ-สกุล (พร้อมคำนำหน้า)').fill('ครูรหัสไม่ดี');
   await dlg.getByLabel('ตำแหน่ง').fill('ครู');
   for (const [bad, want, label] of [
-    ['12345678', /เดาง่าย/, 'เลขเรียง'], ['15012530', /วันที่/, 'วันเกิด พ.ศ.'], [users.t2.code, /ใช้ไม่ได้/, 'รหัสซ้ำกับคนอื่น'],
+    ['123456', /เดาง่าย/, 'เลขเรียง'], ['150125', /วันที่/, 'วันเกิด'], [users.t2.code, /ใช้ไม่ได้/, 'รหัสซ้ำกับคนอื่น'],
   ]) {
     await dlg.getByLabel('รหัสเข้าใช้').fill(bad);
     await dlg.getByRole('button', { name: 'สร้างบัญชี' }).click();
@@ -268,11 +268,11 @@ try {
   await dlg.getByLabel('รายชื่อ').fill('user_code,full_name,position,role,is_admin,login_code\nt3, นายครูสาม ทดสอบ, ครู, teacher,\nบรรทัดเสีย');
   await dlg.getByRole('button', { name: 'ตรวจและนำเข้า' }).click();
   check(/อ่านไม่ได้ 1 บรรทัด/.test(await textOf(dlg.locator('.alert.error'))), 'นำเข้าหลายคน: แจ้งบรรทัดที่อ่านไม่ได้');
-  await dlg.getByLabel('รายชื่อ').fill('t3, นายครูสาม ทดสอบ, ครู, teacher\nt4\tนางครูสี่ ทดสอบ\tครู\tครู\n, นายครูห้า ทดสอบ, ครู, teacher, , 61803394\nนางสาวครูหก ทดสอบ\tครู\tครู');
+  await dlg.getByLabel('รายชื่อ').fill('t3, นายครูสาม ทดสอบ, ครู, teacher\nt4\tนางครูสี่ ทดสอบ\tครู\tครู\n, นายครูห้า ทดสอบ, ครู, teacher, , 618033\nนางสาวครูหก ทดสอบ\tครู\tครู');
   await dlg.getByRole('button', { name: 'ตรวจและนำเข้า' }).click();
   await admin.locator('dialog[open]', { hasText: 'สร้างสำเร็จ 4 จาก 4 บัญชี' }).waitFor({ timeout: 20000 });
   const bulkCodes = await admin.locator('dialog[open] .big-code').allTextContents();
-  check(bulkCodes.length === 4 && bulkCodes.every((c) => /^[0-9]{8}$/.test(c)) && bulkCodes[2] === '61803394',
+  check(bulkCodes.length === 4 && bulkCodes.every((c) => /^[0-9]{6}$/.test(c)) && bulkCodes[2] === '618033',
     'นำเข้าหลายคน: ได้รหัสเข้าใช้ 4 บัญชี (กำหนดเอง 1) รวมแถวที่ไม่มีคอลัมน์รหัสอ้างอิง', bulkCodes.join(' '));
   check(psql('postgres', DB, ['-tAc', "select string_agg(user_code, ',' order by user_code) from public.profiles where full_name like 'นายครูสาม%' or full_name like 'นางครูสี่%'"]).trim() === 't3,t4',
     'นำเข้าหลายคน: เก็บรหัสอ้างอิงจากไฟล์ย้ายข้อมูล');
@@ -316,7 +316,7 @@ try {
   step = 'teacher1';
   const t1 = await newPage('t1', true);
   await loginOk(t1, users.t1.code);
-  check(await visible(t1.getByText('ยอดการลาของฉัน')), 'ครูเข้าด้วยรหัส 8 หลักได้ทันที');
+  check(await visible(t1.getByText('ยอดการลาของฉัน')), 'ครูเข้าด้วยรหัส 6 หลักได้ทันที');
   check(await t1.getByText('เปลี่ยนรหัสผ่าน').count() === 0, 'ไม่มีเมนูเปลี่ยนรหัสผ่าน');
   await shot(t1, '04-home-mobile');
   await t1.getByRole('link', { name: '+ ยื่นใบลา' }).click();

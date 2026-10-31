@@ -11,5 +11,5 @@ select u.id, 'admin', 'ชื่อ นามสกุล', 'ครู', 'hr', t
 from auth.users u
 where u.email = 'admin@leave.pdr.invalid'
 returning user_code, full_name, role, is_admin;
--- 3) เปิด set_login_code.sql ตั้ง v_user_code = 'admin' และรหัสเข้าใช้ 8 หลัก แล้วรัน
--- 4) เข้า https://<เว็บไซต์>/#/login แล้วกรอกรหัสเข้าใช้ 8 หลักอย่างเดียว
+-- 3) เปิด set_login_code.sql ตั้ง v_user_code = 'admin' และรหัสเข้าใช้ 6 หลัก แล้วรัน
+-- 4) เข้า https://<เว็บไซต์>/#/login แล้วกรอกรหัสเข้าใช้ 6 หลักอย่างเดียว

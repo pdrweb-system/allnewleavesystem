@@ -12,11 +12,11 @@ function roleSelect(value) {
   return h('select', {}, Object.entries(ROLE_LABEL).map(([v, l]) => h('option', { value: v, selected: v === value }, l)));
 }
 
-// ช่องรหัสเข้าใช้ 8 หลัก เว้นว่าง = ระบบสุ่มให้
+// ช่องรหัสเข้าใช้ 6 หลัก เว้นว่าง = ระบบสุ่มให้
 function codeInput() {
-  return h('input', { inputmode: 'numeric', pattern: '[0-9]{8}', maxlength: '8', autocomplete: 'off', placeholder: 'เว้นว่างให้ระบบสุ่ม' });
+  return h('input', { inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', autocomplete: 'off', placeholder: 'เว้นว่างให้ระบบสุ่ม' });
 }
-const CODE_HINT = 'ตัวเลข 8 หลัก ห้ามซ้ำกับผู้อื่น ห้ามใช้วันเกิดหรือเลขเรียง (เช่น 12345678) — แนะนำให้ระบบสุ่ม';
+const CODE_HINT = 'ตัวเลข 6 หลัก ห้ามซ้ำกับผู้อื่น ห้ามใช้วันเกิดหรือเลขเรียง (เช่น 123456) — แนะนำให้ระบบสุ่ม';
 
 async function showLoginCode(fullName, code) {
   await dialog({
@@ -144,7 +144,7 @@ function parseBulk(text) {
     if (cells[0] && !/^[a-z0-9][a-z0-9._-]{0,31}$/i.test(cells[0])) cells.unshift('');
     const [ref = '', name, position, role = 'teacher', admin = '', code = ''] = cells;
     const r = ROLE_ALIASES[role.toLowerCase()] ?? ROLE_ALIASES[role || 'teacher'];
-    if (!name || !position || !r || (code && !/^[0-9]{8}$/.test(code))) errors.push(`บรรทัด ${i + 1}: ${line.trim()}`);
+    if (!name || !position || !r || (code && !/^[0-9]{6}$/.test(code))) errors.push(`บรรทัด ${i + 1}: ${line.trim()}`);
     else {
       rows.push({
         user_code: ref.toLowerCase(), full_name: name, position, role: r,
@@ -163,7 +163,7 @@ async function bulkImport(onDone) {
     title: 'นำเข้าผู้ใช้หลายคน',
     body: [
       h('p', { class: 'muted small' }, 'บรรทัดละคน: รหัสอ้างอิง (เว้นว่างได้), ชื่อ-สกุล, ตำแหน่ง, บทบาท (teacher/hr/deputy/director), '
-        + 'แอดมิน (ใช่/เว้นว่าง), รหัสเข้าใช้ 8 หลัก (เว้นว่าง = ระบบสุ่ม) — คัดลอกจาก Excel มาวางได้เลย ไม่ต้องใส่ comma '
+        + 'แอดมิน (ใช่/เว้นว่าง), รหัสเข้าใช้ 6 หลัก (เว้นว่าง = ระบบสุ่ม) — คัดลอกจาก Excel มาวางได้เลย ไม่ต้องใส่ comma '
         + '(ข้อความสีเทาในช่องเป็นแค่ตัวอย่าง ต้องวางหรือพิมพ์รายชื่อจริง)'),
       field('รายชื่อ', text),
       msg,

@@ -40,10 +40,10 @@ async function loginEmail(code) {
   return `k${hex.slice(0, 32)}@${LOGIN_DOMAIN}`;
 }
 
-// ล็อกอินด้วยรหัสเข้าใช้ตัวเลข 8 หลักที่แอดมินตั้งให้อย่างเดียว
+// ล็อกอินด้วยรหัสเข้าใช้ตัวเลข 6 หลักที่แอดมินตั้งให้อย่างเดียว (รหัส 8 หลักที่ตั้งไว้ก่อนหน้านี้ยังใช้ได้)
 export async function signIn(code, remember) {
   const password = code.trim();
-  if (!/^[0-9]{8}$/.test(password)) throw new Error('กรุณากรอกรหัสเข้าใช้เป็นตัวเลข 8 หลัก');
+  if (!/^[0-9]{6,8}$/.test(password)) throw new Error('กรุณากรอกรหัสเข้าใช้เป็นตัวเลข 6 หลัก');
   setRemember(remember);
   const { data, error } = await sb.auth.signInWithPassword({ email: await loginEmail(password), password });
   if (error) {
