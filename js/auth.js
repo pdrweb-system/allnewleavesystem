@@ -14,8 +14,12 @@ export const auth = { user: null, profile: null };
 
 export const isApprover = (p) => !!p && p.role !== 'teacher';
 export const canViewAll = (p) => !!p && (p.is_admin || p.role !== 'teacher');
-// แอดมินไม่ใช้บัญชีแอดมินยื่นใบลา (ให้ใช้บัญชีในบทบาทครูแยกต่างหาก) ผอ. ไม่ยื่นใบลาในระบบนี้
-export const canFile = (p) => !!p && p.role !== 'director' && !p.is_admin;
+// มีเมนู "หน้าหลัก" และ "ยื่นใบลา" เฉพาะครูและหัวหน้าฝ่ายบุคลากรที่ไม่ใช่แอดมิน
+// รองผู้อำนวยการและ ผอ. ไม่ยื่นใบลาในระบบนี้ แอดมินใช้บัญชีในบทบาทครูแยกต่างหาก
+export const hasHome = (p) => !!p && !p.is_admin && (p.role === 'teacher' || p.role === 'hr');
+export const canFile = hasHome;
+// หน้าแรกหลังเข้าสู่ระบบ: ผู้อนุมัติ 3 ตำแหน่งเปิดหน้าอนุมัติใบลา แอดมินล้วนเปิดจัดการผู้ใช้ ครูเปิดหน้าหลัก
+export const landingPath = (p) => (isApprover(p) ? '/approvals' : p?.is_admin ? '/admin/users' : '/');
 
 export async function loadSession() {
   const { data } = await sb.auth.getSession();
