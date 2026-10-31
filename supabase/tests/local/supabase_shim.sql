@@ -60,8 +60,19 @@ create table auth.users (
   updated_at timestamptz default now(),
   is_anonymous boolean not null default false
 );
+create table auth.identities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  provider text not null,
+  provider_id text not null,
+  identity_data jsonb not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
 alter table auth.users owner to supabase_auth_admin;
 grant all on auth.users to postgres;
+alter table auth.identities owner to supabase_auth_admin;
+grant all on auth.identities to postgres;
 
 create function auth.uid() returns uuid language sql stable as $$
   select coalesce(

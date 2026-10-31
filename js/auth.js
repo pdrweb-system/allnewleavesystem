@@ -33,36 +33,30 @@ export async function refreshProfile() {
   return data;
 }
 
-export async function signIn(userCode, password, remember) {
+// อีเมลของบัญชีใน Auth = แฮชของรหัสเข้าใช้ (ต้องตรงกับ loginEmail ใน supabase/functions/admin-users/index.ts)
+async function loginEmail(code) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`pdr-leave-v2:${code}`));
+  const hex = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `k${hex.slice(0, 32)}@${LOGIN_DOMAIN}`;
+}
+
+// ล็อกอินด้วยรหัสเข้าใช้ตัวเลข 8 หลักที่แอดมินตั้งให้อย่างเดียว
+export async function signIn(code, remember) {
+  const password = code.trim();
+  if (!/^[0-9]{8}$/.test(password)) throw new Error('กรุณากรอกรหัสเข้าใช้เป็นตัวเลข 8 หลัก');
   setRemember(remember);
-  const email = `${userCode.trim().toLowerCase()}@${LOGIN_DOMAIN}`;
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({ email: await loginEmail(password), password });
   if (error) {
     if (/banned/i.test(error.message) || error.code === 'user_banned') {
       throw new Error('บัญชีนี้ถูกปิดใช้งาน กรุณาติดต่อแอดมิน');
     }
     if (/invalid login credentials/i.test(error.message) || error.status === 400) {
-      throw new Error('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+      throw new Error('รหัสเข้าใช้ไม่ถูกต้อง');
     }
     if (error.status === 429) throw new Error('ลองเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่');
     throw error;
   }
   auth.user = data.user;
-  return refreshProfile();
-}
-
-export async function changePassword(newPassword) {
-  const { error } = await sb.auth.updateUser({ password: newPassword });
-  if (error) {
-    if (/different from the old password/i.test(error.message)) {
-      throw new Error('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม');
-    }
-    if (/weak|at least/i.test(error.message)) throw new Error('รหัสผ่านสั้นหรือคาดเดาง่ายเกินไป');
-    if (/reauthentication|recent/i.test(error.message)) {
-      throw new Error('กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่ก่อนเปลี่ยนรหัสผ่าน');
-    }
-    throw error;
-  }
   return refreshProfile();
 }
 

@@ -1,9 +1,11 @@
-// แอดมินจัดการบัญชีผู้ใช้: สร้างบัญชี / รีเซ็ตรหัสผ่าน / แก้ข้อมูล บทบาท สิทธิ์แอดมิน เปิด-ปิดบัญชี ลายเซ็นผู้อนุมัติ
-// deploy แบบ verify_jwt = false แล้วตรวจผู้เรียกเองด้านล่าง (ต้องเป็นแอดมินที่เปลี่ยนรหัสผ่านชั่วคราวแล้ว)
+// แอดมินจัดการบัญชีผู้ใช้: สร้างบัญชี / ตั้งรหัสเข้าใช้ใหม่ / แก้ข้อมูล บทบาท สิทธิ์แอดมิน เปิด-ปิดบัญชี ลายเซ็นผู้อนุมัติ
+// deploy แบบ verify_jwt = false แล้วตรวจผู้เรียกเองด้านล่าง (ต้องเป็นแอดมินที่บัญชีเปิดอยู่)
 // body: { action: 'create' | 'reset_password' | 'update', ... }
+// ล็อกอินด้วยรหัสเข้าใช้ตัวเลข 8 หลักอย่างเดียว ที่แอดมินตั้งให้ (ผู้ใช้เปลี่ยนเองไม่ได้)
+// อีเมลของบัญชีใน Auth = แฮชของรหัส จึงหาบัญชีได้จากรหัสโดยไม่ต้องมีชื่อผู้ใช้ และรหัสซ้ำกันไม่ได้
 import { cors, json, serviceClient } from '../_shared/supabase.ts';
 
-// ต้องตรงกับ LOGIN_DOMAIN ใน js/config.js
+// ต้องตรงกับ LOGIN_DOMAIN / loginEmail ใน js/config.js, js/auth.js และ supabase/seed/set_login_code.sql
 const LOGIN_DOMAIN = 'leave.pdr.invalid';
 const ROLES = ['teacher', 'hr', 'deputy', 'director'] as const;
 type Role = (typeof ROLES)[number];
@@ -22,20 +24,53 @@ class HttpError extends Error {
   }
 }
 
-// รหัสผ่านชั่วคราว 10 ตัว (ตัดตัวที่สับสนง่าย 0/o 1/l/i) เช่น k7m3p-x9q2r
-// มีทั้งตัวอักษรและตัวเลขเสมอ ให้ผ่านเงื่อนไข "Letters and digits" ของ Auth (สุ่มใหม่ราว 5% ของครั้ง)
-function tempPassword(): string {
-  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+async function loginEmail(code: string): Promise<string> {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`pdr-leave-v2:${code}`));
+  const hex = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `k${hex.slice(0, 32)}@${LOGIN_DOMAIN}`;
+}
+
+function randomChars(alphabet: string, length: number): string {
+  const limit = 256 - (256 % alphabet.length); // ตัดส่วนเกินทิ้ง ไม่ให้บางตัวออกบ่อยกว่า
   const buf = new Uint8Array(1);
-  for (;;) {
-    const out: string[] = [];
-    while (out.length < 10) {
-      crypto.getRandomValues(buf);
-      if (buf[0] < 248) out.push(alphabet[buf[0] % alphabet.length]); // 248 = 8 × 31 ไม่เอนเอียง
-    }
-    const pw = out.slice(0, 5).join('') + '-' + out.slice(5).join('');
-    if (/[a-z]/.test(pw) && /[0-9]/.test(pw)) return pw;
+  let out = '';
+  while (out.length < length) {
+    crypto.getRandomValues(buf);
+    if (buf[0] < limit) out += alphabet[buf[0] % alphabet.length];
   }
+  return out;
+}
+
+// ดูเหมือนวันที่ (วันเกิด) แบบ ววดดปปปป / ปปปปดดวว / ดดววปปปป ทั้ง ค.ศ. และ พ.ศ.
+function looksLikeDate(c: string): boolean {
+  const ok = (d: number, m: number, y: number) =>
+    d >= 1 && d <= 31 && m >= 1 && m <= 12 && ((y >= 1900 && y <= 2100) || (y >= 2400 && y <= 2650));
+  const n = (a: number, b: number) => Number(c.slice(a, b));
+  return ok(n(0, 2), n(2, 4), n(4, 8)) || ok(n(6, 8), n(4, 6), n(0, 4)) || ok(n(2, 4), n(0, 2), n(4, 8));
+}
+
+function codeProblem(code: string): string | null {
+  if (!/^[0-9]{8}$/.test(code)) return 'รหัสเข้าใช้ต้องเป็นตัวเลข 8 หลัก';
+  if (/^([0-9])\1{7}$/.test(code) || '01234567890123456789'.includes(code) || '98765432109876543210'.includes(code)) {
+    return 'รหัสนี้เดาง่ายเกินไป กรุณาใช้รหัสอื่น';
+  }
+  if (looksLikeDate(code)) return 'รหัสนี้ดูเหมือนวันที่ (เช่นวันเกิด) ห้ามใช้ กรุณาใช้รหัสอื่น';
+  return null;
+}
+
+function randomCode(): string {
+  for (;;) {
+    const code = randomChars('0123456789', 8);
+    if (!codeProblem(code)) return code;
+  }
+}
+
+function requestedCode(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  const code = typeof value === 'string' ? value.trim() : '';
+  const problem = codeProblem(code);
+  if (problem) throw new HttpError(400, problem);
+  return code;
 }
 
 function text(value: unknown, field: string, max = 120): string {
@@ -63,7 +98,7 @@ Deno.serve(async (req) => {
 
   const admin = serviceClient();
   try {
-    // ผู้เรียกต้องเป็นแอดมินที่บัญชีเปิดอยู่และเปลี่ยนรหัสผ่านชั่วคราวแล้ว
+    // ผู้เรียกต้องเป็นแอดมินที่บัญชีเปิดอยู่
     const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
     const { data: auth } = await admin.auth.getUser(jwt);
     if (!auth?.user) throw new HttpError(401, 'กรุณาเข้าสู่ระบบใหม่');
@@ -96,42 +131,73 @@ Deno.serve(async (req) => {
       }
     };
 
+    // สร้างหรือเปลี่ยนรหัสเข้าใช้: รหัสที่แอดมินระบุใช้ได้ครั้งเดียว รหัสสุ่มลองใหม่ได้ถ้าบังเอิญซ้ำ
+    const withLoginCode = async (
+      requested: string | null,
+      apply: (email: string, code: string) => Promise<{ code?: string } | null>,
+    ) => {
+      for (let attempt = 0; attempt < (requested ? 1 : 5); attempt++) {
+        const code = requested ?? randomCode();
+        const err = await apply(await loginEmail(code), code);
+        if (!err) return code;
+        if (err.code === 'email_exists') {
+          if (requested) throw new HttpError(409, 'รหัสนี้ใช้ไม่ได้ กรุณาใช้รหัสอื่น');
+          continue;
+        }
+        if (err.code === 'weak_password') {
+          throw new HttpError(400, 'Supabase ไม่รับรหัสตัวเลขล้วน: ตั้ง Password Requirements เป็น "No required characters" ใน Auth settings');
+        }
+        throw new HttpError(400, 'บันทึกรหัสเข้าใช้ไม่สำเร็จ');
+      }
+      throw new HttpError(409, 'สุ่มรหัสไม่สำเร็จ กรุณาลองใหม่');
+    };
+
     switch (body.action) {
       case 'create': {
-        const userCode = typeof body.user_code === 'string' ? body.user_code.trim().toLowerCase() : '';
-        if (!USER_CODE_RE.test(userCode)) {
-          throw new HttpError(400, 'ชื่อผู้ใช้ใช้ได้เฉพาะ a-z 0-9 . _ - (ไม่เกิน 32 ตัว ขึ้นต้นด้วยตัวอักษรหรือตัวเลข)');
+        // user_code เป็นรหัสอ้างอิงภายใน (ไม่ใช้ล็อกอิน) ส่งมาได้ตอนนำเข้าจากระบบเดิม ไม่ส่งระบบตั้งให้
+        let userCode = typeof body.user_code === 'string' ? body.user_code.trim().toLowerCase() : '';
+        if (userCode && !USER_CODE_RE.test(userCode)) {
+          throw new HttpError(400, 'รหัสอ้างอิงใช้ได้เฉพาะ a-z 0-9 . _ - (ไม่เกิน 32 ตัว ขึ้นต้นด้วยตัวอักษรหรือตัวเลข)');
         }
         const fullName = text(body.full_name, 'ชื่อ-สกุล');
         const position = text(body.position, 'ตำแหน่ง');
         const r = role(body.role ?? 'teacher');
         const isAdmin = body.is_admin === true;
+        const requested = requestedCode(body.login_code);
 
-        const { data: dup } = await admin.from('profiles').select('id').eq('user_code', userCode).maybeSingle();
-        if (dup) throw new HttpError(409, 'ชื่อผู้ใช้นี้มีอยู่แล้ว');
+        if (userCode) {
+          const { data: dup } = await admin.from('profiles').select('id').eq('user_code', userCode).maybeSingle();
+          if (dup) throw new HttpError(409, `รหัสอ้างอิง ${userCode} มีอยู่แล้ว`);
+        } else {
+          for (;;) {
+            userCode = `u${randomChars('abcdefghjkmnpqrstuvwxyz23456789', 7)}`;
+            const { data: dup } = await admin.from('profiles').select('id').eq('user_code', userCode).maybeSingle();
+            if (!dup) break;
+          }
+        }
         await assertRoleFree(r, null);
 
-        const password = tempPassword();
-        const { data: created, error: createErr } = await admin.auth.admin.createUser({
-          email: `${userCode}@${LOGIN_DOMAIN}`,
-          password,
-          email_confirm: true,
+        let userIdNew = '';
+        const loginCode = await withLoginCode(requested, async (email, password) => {
+          const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+          if (error || !created?.user) {
+            console.error('createUser failed', error?.code, error?.message);
+            return { code: error?.code ?? 'unknown' };
+          }
+          userIdNew = created.user.id;
+          return null;
         });
-        if (createErr || !created?.user) {
-          console.error('createUser failed', createErr?.code, createErr?.message);
-          throw new HttpError(400, 'สร้างบัญชีไม่สำเร็จ (ชื่อผู้ใช้นี้อาจมีบัญชีอยู่แล้ว)');
-        }
         const { error: profileErr } = await admin.from('profiles').insert({
-          id: created.user.id, user_code: userCode, full_name: fullName, position,
-          role: r, is_admin: isAdmin, must_change_password: true, active: true,
+          id: userIdNew, user_code: userCode, full_name: fullName, position,
+          role: r, is_admin: isAdmin, must_change_password: false, active: true,
         });
         if (profileErr) {
           console.error('profile insert failed', profileErr.code, profileErr.message);
-          await admin.auth.admin.deleteUser(created.user.id);
+          await admin.auth.admin.deleteUser(userIdNew);
           throw new HttpError(profileErr.code === '23505' ? 409 : 500, 'สร้างบัญชีไม่สำเร็จ');
         }
-        await audit('create', created.user.id, { user_code: userCode, role: r, is_admin: isAdmin });
-        return json(200, { user_id: created.user.id, user_code: userCode, temp_password: password });
+        await audit('create', userIdNew, { user_code: userCode, role: r, is_admin: isAdmin });
+        return json(200, { user_id: userIdNew, user_code: userCode, login_code: loginCode });
       }
 
       case 'reset_password': {
@@ -139,16 +205,15 @@ Deno.serve(async (req) => {
         const { data: target } = await admin.from('profiles').select('id, active').eq('id', id).maybeSingle();
         if (!target) throw new HttpError(404, 'ไม่พบผู้ใช้');
         if (!target.active) throw new HttpError(400, 'บัญชีนี้ถูกปิดอยู่ กรุณาเปิดบัญชีก่อน');
-        const password = tempPassword();
-        const { error } = await admin.auth.admin.updateUserById(id, { password });
-        if (error) {
-          console.error('updateUserById failed', error.code, error.message);
-          throw new HttpError(400, 'รีเซ็ตรหัสผ่านไม่สำเร็จ');
-        }
-        // trigger ใน DB ปลดธงเมื่อรหัสผ่านเปลี่ยน จึงต้องตั้งธงกลับหลังรีเซ็ต
-        await admin.from('profiles').update({ must_change_password: true }).eq('id', id);
+        const loginCode = await withLoginCode(requestedCode(body.login_code), async (email, password) => {
+          const { error } = await admin.auth.admin.updateUserById(id, { email, password, email_confirm: true });
+          if (error) console.error('updateUserById failed', error.code, error.message);
+          return error ? { code: error.code ?? 'unknown' } : null;
+        });
+        // บัญชีเก่าที่ยังติดธงบังคับเปลี่ยนรหัส ใช้งานได้ทันทีหลังได้รหัสใหม่
+        await admin.from('profiles').update({ must_change_password: false }).eq('id', id);
         await audit('reset_password', id);
-        return json(200, { user_id: id, temp_password: password });
+        return json(200, { user_id: id, login_code: loginCode });
       }
 
       case 'update': {

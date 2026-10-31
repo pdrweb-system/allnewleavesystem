@@ -12,37 +12,41 @@ function roleSelect(value) {
   return h('select', {}, Object.entries(ROLE_LABEL).map(([v, l]) => h('option', { value: v, selected: v === value }, l)));
 }
 
-async function showTempPassword(userCode, password) {
+// ช่องรหัสเข้าใช้ 8 หลัก เว้นว่าง = ระบบสุ่มให้
+function codeInput() {
+  return h('input', { inputmode: 'numeric', pattern: '[0-9]{8}', maxlength: '8', autocomplete: 'off', placeholder: 'เว้นว่างให้ระบบสุ่ม' });
+}
+const CODE_HINT = 'ตัวเลข 8 หลัก ห้ามซ้ำกับผู้อื่น ห้ามใช้วันเกิดหรือเลขเรียง (เช่น 12345678) — แนะนำให้ระบบสุ่ม';
+
+async function showLoginCode(fullName, code) {
   await dialog({
-    title: 'รหัสผ่านชั่วคราว',
+    title: 'รหัสเข้าใช้',
     body: [
-      h('p', {}, 'แจ้งข้อมูลนี้ให้ผู้ใช้โดยตรง (อย่าส่งในกลุ่ม) ระบบจะบังคับให้ตั้งรหัสผ่านใหม่เมื่อเข้าใช้ครั้งแรก'),
-      h('dl', { class: 'facts' },
-        h('dt', {}, 'ชื่อผู้ใช้'), h('dd', {}, h('code', { class: 'big-code' }, userCode)),
-        h('dt', {}, 'รหัสผ่านชั่วคราว'), h('dd', {}, h('code', { class: 'big-code' }, password))),
-      h('button', { type: 'button', class: 'btn', onclick: () => copyText(`ชื่อผู้ใช้: ${userCode}\nรหัสผ่านชั่วคราว: ${password}`) }, 'คัดลอก'),
-      h('p', { class: 'alert warn small' }, 'ปิดหน้าต่างนี้แล้วจะดูรหัสนี้อีกไม่ได้ (รีเซ็ตใหม่ได้เสมอ)'),
+      h('p', {}, `แจ้งรหัสนี้ให้ ${fullName} โดยตรง (อย่าส่งในกลุ่ม) ใช้รหัสนี้อย่างเดียวเข้าสู่ระบบ`),
+      h('p', { class: 'center' }, h('code', { class: 'big-code' }, code)),
+      h('button', { type: 'button', class: 'btn', onclick: () => copyText(`${fullName}\tรหัสเข้าใช้: ${code}`) }, 'คัดลอก'),
+      h('p', { class: 'alert warn small' }, 'ปิดหน้าต่างนี้แล้วจะดูรหัสนี้อีกไม่ได้ (ตั้งรหัสใหม่ได้เสมอ)'),
     ],
     actions: [{ label: 'จดแล้ว ปิดหน้าต่าง', value: true, kind: 'primary' }],
   });
 }
 
 async function addUser(onDone) {
-  const code = h('input', { autocapitalize: 'none', spellcheck: 'false', maxlength: '32', placeholder: 'เช่น t01 หรือ somchai' });
   const name = h('input', { maxlength: '120', placeholder: 'เช่น นางสาวสมใจ ใจดี' });
   const position = h('input', { maxlength: '120', placeholder: 'เช่น ครู / ครูผู้ช่วย / ครูชำนาญการ' });
   const role = roleSelect('teacher');
   const isAdmin = h('input', { type: 'checkbox' });
+  const code = codeInput();
   const msg = h('div', { class: 'alert error', role: 'alert', hidden: true });
   let created = null;
   const ok = await dialog({
     title: 'เพิ่มผู้ใช้',
     body: [
-      field('ชื่อผู้ใช้ (ใช้ล็อกอิน)', code, 'a-z ตัวเลข . _ - เท่านั้น เปลี่ยนภายหลังไม่ได้'),
       field('ชื่อ-สกุล (พร้อมคำนำหน้า)', name),
       field('ตำแหน่ง', position),
       field('บทบาท', role, 'หัวหน้าฝ่ายบุคลากร / รอง ผอ. / ผอ. มีได้ตำแหน่งละ 1 คน'),
       h('label', { class: 'check' }, isAdmin, ' เป็นแอดมิน (จัดการผู้ใช้และตั้งค่าระบบได้)'),
+      field('รหัสเข้าใช้', code, CODE_HINT),
       msg,
     ],
     actions: [
@@ -53,8 +57,8 @@ async function addUser(onDone) {
           msg.hidden = true;
           try {
             created = await adminUsers({
-              action: 'create', user_code: code.value, full_name: name.value, position: position.value,
-              role: role.value, is_admin: isAdmin.checked,
+              action: 'create', full_name: name.value, position: position.value,
+              role: role.value, is_admin: isAdmin.checked, login_code: code.value,
             });
             return true;
           } catch (e) {
@@ -67,7 +71,7 @@ async function addUser(onDone) {
     ],
   });
   if (ok && created) {
-    await showTempPassword(created.user_code, created.temp_password);
+    await showLoginCode(name.value.trim(), created.login_code);
     onDone();
   }
 }
@@ -80,7 +84,7 @@ async function editUser(u, me, onDone) {
   const active = h('input', { type: 'checkbox', checked: u.active, disabled: u.id === me.id });
   const msg = h('div', { class: 'alert error', role: 'alert', hidden: true });
   const ok = await dialog({
-    title: `แก้ไข ${u.user_code}`,
+    title: `แก้ไข ${u.full_name}`,
     body: [
       field('ชื่อ-สกุล', name),
       field('ตำแหน่ง', position),
@@ -123,7 +127,8 @@ async function editUser(u, me, onDone) {
 }
 
 // นำเข้าหลายคนพร้อมกัน: บรรทัดละคน คั่นด้วย , หรือ Tab
-// ชื่อผู้ใช้, ชื่อ-สกุล, ตำแหน่ง, บทบาท(teacher/hr/deputy/director), แอดมิน(ใช่/yes/1)
+// รหัสอ้างอิง(เว้นว่างได้), ชื่อ-สกุล, ตำแหน่ง, บทบาท(teacher/hr/deputy/director), แอดมิน(ใช่/yes/1), รหัสเข้าใช้(เว้นว่าง = สุ่ม)
+// คอลัมน์แรกตรงกับ users_plan.csv ของสคริปต์ย้ายข้อมูล ซึ่งใช้รหัสอ้างอิงจับคู่ใบลาเดิมกับบัญชี
 const ROLE_ALIASES = {
   teacher: 'teacher', 'ครู': 'teacher', hr: 'hr', 'หัวหน้าฝ่ายบุคลากร': 'hr',
   deputy: 'deputy', 'รองผู้อำนวยการ': 'deputy', director: 'director', 'ผู้อำนวยการ': 'director',
@@ -132,25 +137,31 @@ const ROLE_ALIASES = {
 function parseBulk(text) {
   const rows = [];
   const errors = [];
-  text.split('\n').map((l) => l.trim()).filter(Boolean).forEach((line, i) => {
+  text.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => l.trim()).forEach((line, i) => {
     const cells = line.split(line.includes('\t') ? '\t' : ',').map((c) => c.trim().replace(/^"|"$/g, ''));
-    if (i === 0 && /user_code|ชื่อผู้ใช้/i.test(cells[0])) return; // แถวหัวตาราง
-    const [code, name, position, role = 'teacher', admin = ''] = cells;
-    const r = ROLE_ALIASES[role.toLowerCase()] ?? ROLE_ALIASES[role];
-    if (!code || !name || !position || !r) errors.push(`บรรทัด ${i + 1}: ${line}`);
-    else rows.push({ user_code: code.toLowerCase(), full_name: name, position, role: r, is_admin: /^(ใช่|yes|y|1|true)$/i.test(admin) });
+    if (i === 0 && /user_code|full_name|ชื่อ-สกุล/i.test(cells.join(' '))) return; // แถวหัวตาราง
+    const [ref = '', name, position, role = 'teacher', admin = '', code = ''] = cells;
+    const r = ROLE_ALIASES[role.toLowerCase()] ?? ROLE_ALIASES[role || 'teacher'];
+    if (!name || !position || !r || (code && !/^[0-9]{8}$/.test(code))) errors.push(`บรรทัด ${i + 1}: ${line.trim()}`);
+    else {
+      rows.push({
+        user_code: ref.toLowerCase(), full_name: name, position, role: r,
+        is_admin: /^(ใช่|yes|y|1|true)$/i.test(admin), login_code: code,
+      });
+    }
   });
   return { rows, errors };
 }
 
 async function bulkImport(onDone) {
-  const text = h('textarea', { rows: '10', placeholder: 't01, นางสาวสมใจ ใจดี, ครู, teacher\nben, นายเบ็น ..., ครูชำนาญการ, hr, ใช่' });
+  const text = h('textarea', { rows: '10', placeholder: ', นางสาวสมใจ ใจดี, ครู, teacher\n, นายสมชาย ..., ครูชำนาญการ, hr, ใช่' });
   const msg = h('div', { class: 'alert error', role: 'alert', hidden: true });
   let parsed = null;
   const ok = await dialog({
     title: 'นำเข้าผู้ใช้หลายคน',
     body: [
-      h('p', { class: 'muted small' }, 'บรรทัดละคน: ชื่อผู้ใช้, ชื่อ-สกุล, ตำแหน่ง, บทบาท (teacher/hr/deputy/director), แอดมิน (ใช่/เว้นว่าง) — วางจากไฟล์ users_plan.csv ของสคริปต์ย้ายข้อมูลได้เลย'),
+      h('p', { class: 'muted small' }, 'บรรทัดละคน: รหัสอ้างอิง (เว้นว่างได้), ชื่อ-สกุล, ตำแหน่ง, บทบาท (teacher/hr/deputy/director), '
+        + 'แอดมิน (ใช่/เว้นว่าง), รหัสเข้าใช้ 8 หลัก (เว้นว่าง = ระบบสุ่ม) — วางจากไฟล์ users_plan.csv ของสคริปต์ย้ายข้อมูลได้เลย'),
       field('รายชื่อ', text),
       msg,
     ],
@@ -177,13 +188,13 @@ async function bulkImport(onDone) {
     body: [
       status,
       h('table', { class: 'table print-list' },
-        h('thead', {}, h('tr', {}, ['ชื่อ-สกุล', 'ชื่อผู้ใช้', 'รหัสผ่านชั่วคราว / ผล'].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['ชื่อ-สกุล', 'รหัสเข้าใช้ / ผล'].map((t) => h('th', {}, t)))),
         table),
-      h('p', { class: 'alert warn small' }, 'จดหรือพิมพ์รายการนี้ก่อนปิด — ปิดแล้วจะดูรหัสชั่วคราวอีกไม่ได้ (รีเซ็ตใหม่ได้)'),
+      h('p', { class: 'alert warn small' }, 'จดหรือพิมพ์รายการนี้ก่อนปิด — ปิดแล้วจะดูรหัสเข้าใช้อีกไม่ได้ (ตั้งรหัสใหม่ได้)'),
       h('div', { class: 'row gap' },
         h('button', {
           type: 'button', class: 'btn',
-          onclick: () => copyText(results.map((r) => `${r.full_name}\t${r.user_code}\t${r.temp_password ?? r.error}`).join('\n')),
+          onclick: () => copyText(results.map((r) => `${r.full_name}\t${r.login_code ?? r.error}`).join('\n')),
         }, 'คัดลอกทั้งหมด'),
         h('button', { type: 'button', class: 'btn', onclick: () => window.print() }, 'พิมพ์')),
     ],
@@ -193,29 +204,50 @@ async function bulkImport(onDone) {
     status.textContent = `กำลังสร้างบัญชี ${i + 1}/${parsed.rows.length}…`;
     try {
       const res = await adminUsers({ action: 'create', ...row });
-      results.push({ ...row, temp_password: res.temp_password });
-      table.append(h('tr', {}, h('td', {}, row.full_name), h('td', {}, h('code', {}, row.user_code)),
-        h('td', {}, h('code', { class: 'big-code' }, res.temp_password))));
+      results.push({ ...row, login_code: res.login_code });
+      table.append(h('tr', {}, h('td', {}, row.full_name), h('td', {}, h('code', { class: 'big-code' }, res.login_code))));
     } catch (e) {
-      results.push({ ...row, error: errorText(e) });
-      table.append(h('tr', { class: 'inactive' }, h('td', {}, row.full_name), h('td', {}, row.user_code),
+      results.push({ ...row, login_code: null, error: errorText(e) });
+      table.append(h('tr', { class: 'inactive' }, h('td', {}, row.full_name),
         h('td', {}, h('span', { class: 'reason' }, errorText(e)))));
     }
   }
-  const okCount = results.filter((r) => r.temp_password).length;
+  const okCount = results.filter((r) => r.login_code).length;
   status.textContent = `สร้างสำเร็จ ${okCount} จาก ${results.length} บัญชี`;
   await done;
   onDone();
 }
 
-async function resetPassword(u) {
-  if (!await confirmDialog('รีเซ็ตรหัสผ่าน', `ออกรหัสผ่านชั่วคราวใหม่ให้ ${u.full_name}? รหัสเดิมจะใช้ไม่ได้ทันที`, { okText: 'รีเซ็ต' })) return;
-  try {
-    const res = await adminUsers({ action: 'reset_password', user_id: u.id });
-    await showTempPassword(u.user_code, res.temp_password);
-  } catch (e) {
-    toast(errorText(e), 'error');
-  }
+async function setLoginCode(u) {
+  const code = codeInput();
+  const msg = h('div', { class: 'alert error', role: 'alert', hidden: true });
+  let res = null;
+  const ok = await dialog({
+    title: `ตั้งรหัสเข้าใช้ใหม่: ${u.full_name}`,
+    body: [
+      h('p', {}, 'รหัสเดิมจะใช้ไม่ได้ทันทีหลังบันทึก'),
+      field('รหัสเข้าใช้ใหม่', code, CODE_HINT),
+      msg,
+    ],
+    actions: [
+      { label: 'ยกเลิก', value: false },
+      {
+        label: 'บันทึกรหัสใหม่', value: true, kind: 'primary',
+        validate: async () => {
+          msg.hidden = true;
+          try {
+            res = await adminUsers({ action: 'reset_password', user_id: u.id, login_code: code.value });
+            return true;
+          } catch (e) {
+            msg.textContent = errorText(e);
+            msg.hidden = false;
+            return false;
+          }
+        },
+      },
+    ],
+  });
+  if (ok && res) await showLoginCode(u.full_name, res.login_code);
 }
 
 async function signatureDialog(u, onDone) {
@@ -297,25 +329,24 @@ export default async function adminUsersView(el, _params, { profile }) {
 
     const rows = users.map((u) => h('tr', { class: u.active ? null : 'inactive' },
       h('td', { 'data-label': 'ชื่อ' }, h('strong', {}, u.full_name), h('br'), h('small', { class: 'muted' }, u.position)),
-      h('td', { 'data-label': 'ชื่อผู้ใช้' }, h('code', {}, u.user_code)),
       h('td', { 'data-label': 'บทบาท' },
         h('span', { class: `badge role-${u.role}` }, ROLE_LABEL[u.role]),
         u.is_admin ? h('span', { class: 'badge admin' }, 'แอดมิน') : null),
       h('td', { 'data-label': 'สถานะ' },
         !u.active ? h('span', { class: 'badge cancelled' }, 'ปิดบัญชี')
-          : u.must_change_password ? h('span', { class: 'badge pending' }, 'ยังไม่เปลี่ยนรหัส')
+          : u.must_change_password ? h('span', { class: 'badge pending' }, 'ต้องตั้งรหัสใหม่')
             : h('span', { class: 'badge approved' }, 'ใช้งานได้'),
         u.role !== 'teacher' && u.active
           ? h('span', { class: `badge ${u.signature_path ? 'approved' : 'rejected'}` }, u.signature_path ? 'มีลายเซ็น' : 'ไม่มีลายเซ็น')
           : null),
       h('td', { class: 'actions', 'data-label': '' },
         h('button', { type: 'button', class: 'btn small', onclick: () => editUser(u, profile, load) }, 'แก้ไข'),
-        u.active ? h('button', { type: 'button', class: 'btn small', onclick: () => resetPassword(u) }, 'รีเซ็ตรหัส') : null,
+        u.active ? h('button', { type: 'button', class: 'btn small', onclick: () => setLoginCode(u).then(load) }, 'ตั้งรหัสใหม่') : null,
         u.role !== 'teacher'
           ? h('button', { type: 'button', class: 'btn small', onclick: () => signatureDialog(u, load) }, 'ลายเซ็น')
           : null)));
 
-    const ACTION = { create: 'สร้างบัญชี', reset_password: 'รีเซ็ตรหัสผ่าน', update: 'แก้ไขข้อมูล' };
+    const ACTION = { create: 'สร้างบัญชี', reset_password: 'ตั้งรหัสเข้าใช้ใหม่ให้', update: 'แก้ไขข้อมูล' };
     mount(el,
       h('div', { class: 'row space wrap' },
         h('h1', {}, 'จัดการผู้ใช้'),
@@ -329,7 +360,7 @@ export default async function adminUsersView(el, _params, { profile }) {
         ? h('p', { class: 'alert warn' }, `ผู้อนุมัติที่ยังไม่มีลายเซ็น (อนุมัติไม่ได้): ${noSig.map((u) => u.full_name).join(', ')}`)
         : null,
       h('table', { class: 'table responsive' },
-        h('thead', {}, h('tr', {}, ['ชื่อ', 'ชื่อผู้ใช้', 'บทบาท', 'สถานะ', ''].map((t) => h('th', {}, t)))),
+        h('thead', {}, h('tr', {}, ['ชื่อ', 'บทบาท', 'สถานะ', ''].map((t) => h('th', {}, t)))),
         h('tbody', {}, rows)),
       h('section', { class: 'section' },
         h('h2', {}, 'ประวัติการจัดการบัญชีล่าสุด'),
