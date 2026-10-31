@@ -202,8 +202,8 @@ Deno.serve(async (req) => {
     return json(200, { ok: false });
   }
 
-  // ผอ. อนุญาตแล้ว → ส่งทุกกลุ่มใน LINE_GROUP_FINAL (กลุ่มหลัก + กลุ่มที่ 2); อย่างอื่นส่งกลุ่มหลัก
-  const targets = [...new Set(n.event === 'approved' && finalGroups.length ? finalGroups : [mainGroup])];
+  // ผอ. อนุญาตแล้ว → ส่งกลุ่มหลัก + ทุกกลุ่มใน LINE_GROUP_FINAL (กลุ่มที่ 2) โดยไม่ซ้ำกัน; อย่างอื่นส่งกลุ่มหลัก
+  const targets = [...new Set(n.event === 'approved' ? [mainGroup, ...finalGroups] : [mainGroup])];
   const message = buildMessage(n.event, n.payload, siteUrl);
   const results: string[] = [];
   for (const to of targets) {
