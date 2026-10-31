@@ -210,8 +210,7 @@ try {
   await shot(admin, '01-login-desktop');
   check(await admin.locator('input[autocomplete="username"]').count() === 0, 'หน้าล็อกอินไม่มีช่องชื่อผู้ใช้');
   await login(admin, '1234');
-  check(await admin.locator('#login-code').evaluate((i) => !i.checkValidity()) && /#\/login/.test(admin.url()),
-    'รหัสไม่ครบ 6 หลักส่งไม่ได้ (เบราว์เซอร์แจ้งเตือน)');
+  check(/ไม่ถูกต้อง/.test(await textOf(admin.locator('.alert.error'))), 'รหัสสั้นที่ไม่มีในระบบเข้าไม่ได้ (แจ้งว่ารหัสไม่ถูกต้อง)');
   await login(admin, '739159');
   check(/ไม่ถูกต้อง/.test(await textOf(admin.locator('.alert.error'))), 'รหัสผิดแสดงข้อความภาษาไทย');
   await loginOk(admin, ADMIN_CODE);
@@ -394,6 +393,18 @@ try {
   await confirmInDialog(t2, 'ยกเลิกใบลา');
   await t2.locator('.badge', { hasText: 'ยกเลิกแล้ว' }).first().waitFor();
   check(true, `ยกเลิกใบลา #${cancelId}`);
+  // ลบใบลาที่ยกเลิกแล้วจากหน้าหลัก: ใบและไฟล์ลายเซ็นหายจริง ใบอื่นอยู่ครบ ปุ่มลบมีเฉพาะใบที่ยกเลิก
+  const cancelSig = psql('postgres', DB, ['-tAc', `select signature_path from public.leaves where id = ${cancelId}`]).trim();
+  await t2.goto(`${SITE}/#/`);
+  await t2.locator('.leave-item').first().waitFor();
+  check(await t2.locator('.leave-item .btn.danger').count() === 1, 'หน้าหลักมีปุ่มลบเฉพาะใบที่ยกเลิกแล้ว (1 ใบ)');
+  await shot(t2, '04b-home-with-delete', { fullPage: false });
+  await t2.locator('.leave-item', { hasText: 'ยกเลิกแล้ว' }).getByRole('button', { name: /ลบใบลา/ }).click();
+  await confirmInDialog(t2, 'ลบ');
+  check(/ลบใบลาแล้ว/.test(await toastText(t2, /ลบใบลา/)), 'ลบใบลาที่ยกเลิกแล้ว');
+  await t2.locator('.leave-item', { hasText: 'ยกเลิกแล้ว' }).waitFor({ state: 'detached' });
+  check(psql('postgres', DB, ['-tAc', `select (select count(*) from public.leaves where id = ${cancelId}) || '|' || (select count(*) from public.leave_days where leave_id = ${cancelId}) || '|' || (select count(*) from storage.objects where name = '${cancelSig}')`]).trim() === '0|0|0'
+    && !fs.existsSync(path.join(OUT, 'storage', 'leave-signatures', cancelSig)), 'ใบลา วันลา และไฟล์ลายเซ็นของใบที่ลบหายไปจริง');
   const rejectId = await submitSimple(t2, 'ลากิจ', '2026-10-28', 'ไปต่างจังหวัด');
 
   // ===== 4. หัวหน้าฝ่าย → รองฯ → ผอ. =====
