@@ -27,12 +27,15 @@ async function sigImg(bucket, path, alt) {
   return url ? h('img', { class: 'sig', src: url, alt }) : h('span', { class: 'sig-missing' }, '(ไม่พบภาพลายเซ็น)');
 }
 
+// ลายเซ็น 1 ชุด: (ลงชื่อ) / (ชื่อ) แล้วผู้อนุมัติมีบรรทัด ตำแหน่ง ... และ วันที่ ... / ... / ... เพิ่ม
 function signBlock({ img, name, title, date, label = '(ลงชื่อ)' }) {
   return h('div', { class: 'sign' },
     h('div', { class: 'sign-line' }, h('span', {}, label), h('span', { class: 'sign-slot' }, img ?? '')),
     h('div', { class: 'sign-name' }, `(${name ? ` ${name} ` : ' '.repeat(40)})`),
-    title ? h('div', { class: 'sign-title' }, title) : null,
-    date !== undefined ? h('div', { class: 'sign-date' }, `วันที่ ${date || '.........../.........../...........'}`) : null);
+    title !== undefined ? h('div', { class: 'sign-row' }, 'ตำแหน่ง', dots(title, 'w-title')) : null,
+    date !== undefined
+      ? h('div', { class: 'sign-row' }, 'วันที่', dots(date.d, 'w-d'), '/', dots(date.m, 'w-m'), '/', dots(date.y, 'w-y'))
+      : null);
 }
 
 export default async function leaveForm(el, { id }) {
@@ -60,7 +63,7 @@ export default async function leaveForm(el, { id }) {
   };
   const [hrSig, deputySig, directorSig] = await Promise.all(['hr', 'deputy', 'director'].map(stepSig));
 
-  const decidedDate = (a) => (a ? thDate(a.approve_date ?? a.decided_at?.slice(0, 10)) : '');
+  const decidedOn = (a) => (a ? longDate(a.approve_date ?? a.decided_at?.slice(0, 10)) : { d: '', m: '', y: '' });
   const skipped = (step) => !steps.includes(step);
 
   // ---------- ส่วนบน: คำขอลา ----------
@@ -107,43 +110,41 @@ export default async function leaveForm(el, { id }) {
     h('caption', {}, 'หน่วย: ครั้ง / วัน'));
 
   const hr = byStep.hr;
-  const checker = h('div', { class: 'f-box' },
+  const checker = h('section', { class: 'f-sec' },
+    h('h2', { class: 'f-sec-title' }, 'ผู้ตรวจสอบ'),
     skipped('hr')
       ? h('p', { class: 'f-note' }, 'ผู้ลาเป็นหัวหน้าฝ่ายบริหารงานบุคคล (ไม่ต้องผ่านขั้นตรวจสอบ)')
       : [
         hr?.decision === 'reject' ? h('p', { class: 'f-reject' }, `ไม่ผ่านการตรวจสอบ: ${hr.reason}`) : null,
-        h('div', { class: 'sign-role' }, 'ผู้ตรวจสอบ'),
-        signBlock({ img: hrSig, name: hr?.name, title: s.hr_title ?? 'หัวหน้าฝ่ายบริหารงานบุคคล', date: decidedDate(hr) }),
+        signBlock({ img: hrSig, name: hr?.name, title: s.hr_title ?? 'หัวหน้าฝ่ายบริหารงานบุคคล', date: decidedOn(hr) }),
       ]);
 
   const statBlock = h('div', {},
     h('h2', {}, 'สถิติการลาในปีงบประมาณนี้', round ? h('small', {}, ` (รอบ ${round.label})`) : null),
     statTable);
 
+  // ความเห็นผู้บังคับบัญชา: ความเห็นรองฯ แล้วตามด้วยคำสั่ง ผอ. ในส่วนเดียวกัน (ไม่มีกรอบ ตามแบบฟอร์มราชการ)
   const dep = byStep.deputy;
-  const deputyBox = h('div', { class: 'f-box' },
-    h('h2', {}, 'ความเห็นรองผู้อำนวยการ'),
+  const dir = byStep.director;
+  const supervisor = h('section', { class: 'f-sec' },
+    h('h2', { class: 'f-sec-title' }, 'ความเห็นผู้บังคับบัญชา'),
     skipped('deputy')
-      ? h('p', { class: 'f-note' }, 'ผู้ลาเป็นรองผู้อำนวยการ')
+      ? h('p', { class: 'f-note' }, 'ผู้ลาเป็นรองผู้อำนวยการ (ไม่ต้องผ่านขั้นนี้)')
       : [
         h('p', { class: 'f-opinion' }, dots(dep
           ? (dep.decision === 'approve' ? s.deputy_approve_text : `${s.deputy_reject_text} ${dep.reason ? `(${dep.reason})` : ''}`)
           : '', 'w-full')),
-        signBlock({ img: deputySig, name: dep?.name, title: s.deputy_title, date: decidedDate(dep) }),
-      ]);
-
-  const dir = byStep.director;
-  const directorBox = h('div', { class: 'f-box' },
-    h('h2', {}, 'ความเห็นผู้บังคับบัญชา'),
-    h('p', { class: 'f-order' },
+        signBlock({ img: deputySig, name: dep?.name, title: s.deputy_title, date: decidedOn(dep) }),
+      ],
+    h('p', { class: 'f-order' }, 'คำสั่ง',
       h('span', { class: 'tick' }, `${BOX[dir?.decision === 'approve']} อนุญาต`),
       h('span', { class: 'tick' }, `${BOX[dir?.decision === 'reject']} ไม่อนุญาต`)),
-    dir?.decision === 'reject' ? h('p', {}, 'เหตุผล ', dots(dir.reason, 'w-full')) : null,
-    signBlock({ img: directorSig, name: dir?.name, title: s.director_title, date: dir ? decidedDate(dir) : '' }));
+    dir?.decision === 'reject' ? h('div', { class: 'sign-row' }, 'เหตุผล', dots(dir.reason, 'w-grow')) : null,
+    signBlock({ img: directorSig, name: dir?.name, title: s.director_title, date: decidedOn(dir) }));
 
-  // ตาราง 2×2 ให้กล่องผู้ตรวจสอบกับกล่อง ผอ. อยู่แถวเดียวกัน สูงเท่ากัน และเส้นลงชื่ออยู่ระดับเดียวกัน
+  // ส่วนล่าง 2 คอลัมน์: สถิติ + ผู้ตรวจสอบ | ความเห็นผู้บังคับบัญชา
   const page = h('article', { class: 'a4', 'aria-label': 'ใบลา' },
-    header, lines, applicant, h('div', { class: 'f-bottom' }, statBlock, deputyBox, checker, directorBox),
+    header, lines, applicant, h('div', { class: 'f-bottom' }, h('div', { class: 'f-col' }, statBlock, checker), supervisor),
     leave.legacy_pdf_url ? h('p', { class: 'f-legacy' }, 'ใบลานี้นำเข้าจากระบบเดิม ต้นฉบับอยู่ในไฟล์ PDF เดิม') : null);
 
   const statusNote = {
@@ -161,8 +162,13 @@ export default async function leaveForm(el, { id }) {
       h('button', { type: 'button', class: 'btn primary', onclick: () => window.print() }, 'พิมพ์ / บันทึกเป็น PDF')),
     h('div', { class: 'a4-wrap' }, page));
 
-  // ใบที่ยาวกว่าปกติ (เช่น เหตุผลหลายบรรทัด) บีบระยะบรรทัด แล้วย่อตัวอักษรเหตุผล จนพอดี A4 หน้าเดียว
   await document.fonts?.ready;
+  // ตำแหน่งยาว (เช่น มีชื่อโรงเรียนเต็ม) ย่อตัวอักษรให้อยู่บรรทัดเดียว ไม่เล็กกว่า 9pt แล้วจึงยอมขึ้นบรรทัดใหม่
+  for (const f of page.querySelectorAll('.fill.w-title')) {
+    for (let pt = 11.5; f.scrollWidth > f.clientWidth && pt >= 9; pt -= 0.5) f.style.fontSize = `${pt}pt`;
+    if (f.scrollWidth > f.clientWidth) f.style.whiteSpace = 'normal';
+  }
+  // ใบที่ยาวกว่าปกติ (เช่น เหตุผลหลายบรรทัด) บีบระยะบรรทัด แล้วย่อตัวอักษรเหตุผล จนพอดี A4 หน้าเดียว
   const fits = () => {
     const top = page.getBoundingClientRect().top;
     const bottom = Math.max(...[...page.children].map((c) => c.getBoundingClientRect().bottom));

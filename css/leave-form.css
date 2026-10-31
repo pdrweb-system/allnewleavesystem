@@ -22,7 +22,6 @@
 .a4.compact-2 .f-head .f-right, .a4.compact-2 .f-body { line-height: 1.55; }
 .a4.compact-2 .fill.w-reason { font-size: 10.5pt; line-height: 1.35; }
 .a4.compact-2 .f-bottom { margin-top: 3mm; }
-.a4.compact-2 .f-box { padding: 2mm 3mm; }
 /* เส้นจุดไข่ปลา: ใช้ตัวจุด (.) ของฟอนต์ ได้จุดกลมระยะเท่ากันเหมือนพิมพ์ด้วยแป้น และคมทั้งบนจอและใน PDF
    (border แบบ dotted ของเบราว์เซอร์เป็นจุดสี่เหลี่ยมถี่ ๆ ส่วนลาย gradient ถูกแปลงเป็นภาพแตก ๆ ตอนพิมพ์) */
 .fill, .sign-slot { position: relative; z-index: 0; }
@@ -57,27 +56,33 @@
 .sig { max-height: 15mm; max-width: 56mm; object-fit: contain; margin-bottom: -2mm; }
 .sig-missing { font-size: 9pt; color: #888; }
 .sign-name { margin-top: 1mm; }
-.sign-title { font-size: 10.5pt; }
-.sign-role { text-align: center; font-weight: 600; }
-.sign-date { font-size: 10.5pt; }
+.sign-row { display: flex; align-items: baseline; gap: 1.5mm; margin-top: 0.5mm; white-space: nowrap; }
+.sign-row .fill { flex: 1 1 auto; }
+.fill.w-grow, .fill.w-title { flex: 1 1 0; min-width: 0; }
+.sign-row .fill.w-grow { white-space: normal; }
 
-/* ตาราง 2×2: สถิติ | ความเห็นรองฯ  /  ผู้ตรวจสอบ | ผู้บังคับบัญชา — กล่องในแถวเดียวกันสูงเท่ากัน */
-.f-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 6mm; margin-top: 5mm; }
+/* ส่วนล่าง: สถิติ + ผู้ตรวจสอบ | ความเห็นผู้บังคับบัญชา (ความเห็นรองฯ + คำสั่ง ผอ.) ไม่มีกรอบ */
+.f-bottom { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 8mm; margin-top: 5mm; align-items: start; }
+.f-col { display: flex; flex-direction: column; gap: 6mm; }
 .f-bottom h2 { font-size: 11.5pt; font-weight: 700; margin: 0 0 1.5mm; }
-.f-box { border: 1px solid #000; padding: 3mm 3.5mm; display: flex; flex-direction: column; }
-.f-box > h2, .f-box > .f-order, .f-box > .f-opinion, .f-opinion .fill { text-align: center; }
-.f-order .tick { margin: 0 3mm; }
-.f-box > .sign { margin-top: auto; } /* ลายเซ็นชิดล่างกล่อง: เส้นลงชื่อของกล่องในแถวเดียวกันอยู่ระดับเดียวกัน */
+.f-sec-title { text-align: center; }
+.f-sec .sign { text-align: left; margin-top: 1mm; }
+.f-sec .sign-line { justify-content: flex-start; }
+.f-sec .sign-slot { flex: 1; min-width: 0; }
+.f-sec .sign-name { text-align: center; }
+.f-opinion .fill, .f-sec .fill.w-grow, .f-sec .fill.w-title { text-align: center; }
+.f-order { font-weight: 700; }
+.f-order .tick { margin-left: 4mm; }
 .f-stats { width: 100%; border-collapse: collapse; margin-bottom: 3mm; font-size: 10.5pt; caption-side: bottom; table-layout: fixed; }
 .f-stats col.c-type { width: 37%; }
 .f-stats th, .f-stats td { border: 1px solid #000; padding: .8mm 1.2mm; text-align: center; }
-.f-stats th { font-weight: 600; line-height: 1.3; }
+.f-stats th { font-weight: 600; line-height: 1.3; font-size: 9.5pt; }
 .f-stats td:first-child { text-align: left; }
 .f-stats caption { font-size: 9pt; text-align: right; }
 .f-note { font-size: 10pt; color: #333; }
 .f-reject { color: #000; font-weight: 600; }
 .f-opinion { margin-bottom: 1mm; }
-.f-order { margin: 1mm 0 2mm; }
+.f-order { margin: 6mm 0 1mm; }
 .f-legacy { margin-top: 4mm; font-size: 9.5pt; color: #444; text-align: center; }
 
 @media print {
