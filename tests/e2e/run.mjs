@@ -268,12 +268,12 @@ try {
   await dlg.getByLabel('รายชื่อ').fill('user_code,full_name,position,role,is_admin,login_code\nt3, นายครูสาม ทดสอบ, ครู, teacher,\nบรรทัดเสีย');
   await dlg.getByRole('button', { name: 'ตรวจและนำเข้า' }).click();
   check(/อ่านไม่ได้ 1 บรรทัด/.test(await textOf(dlg.locator('.alert.error'))), 'นำเข้าหลายคน: แจ้งบรรทัดที่อ่านไม่ได้');
-  await dlg.getByLabel('รายชื่อ').fill('t3, นายครูสาม ทดสอบ, ครู, teacher\nt4\tนางครูสี่ ทดสอบ\tครู\tครู\n, นายครูห้า ทดสอบ, ครู, teacher, , 61803394');
+  await dlg.getByLabel('รายชื่อ').fill('t3, นายครูสาม ทดสอบ, ครู, teacher\nt4\tนางครูสี่ ทดสอบ\tครู\tครู\n, นายครูห้า ทดสอบ, ครู, teacher, , 61803394\nนางสาวครูหก ทดสอบ\tครู\tครู');
   await dlg.getByRole('button', { name: 'ตรวจและนำเข้า' }).click();
-  await admin.locator('dialog[open]', { hasText: 'สร้างสำเร็จ 3 จาก 3 บัญชี' }).waitFor({ timeout: 20000 });
+  await admin.locator('dialog[open]', { hasText: 'สร้างสำเร็จ 4 จาก 4 บัญชี' }).waitFor({ timeout: 20000 });
   const bulkCodes = await admin.locator('dialog[open] .big-code').allTextContents();
-  check(bulkCodes.length === 3 && bulkCodes.every((c) => /^[0-9]{8}$/.test(c)) && bulkCodes[2] === '61803394',
-    'นำเข้าหลายคน: ได้รหัสเข้าใช้ 3 บัญชี (สุ่ม 2 กำหนดเอง 1)', bulkCodes.join(' '));
+  check(bulkCodes.length === 4 && bulkCodes.every((c) => /^[0-9]{8}$/.test(c)) && bulkCodes[2] === '61803394',
+    'นำเข้าหลายคน: ได้รหัสเข้าใช้ 4 บัญชี (กำหนดเอง 1) รวมแถวที่ไม่มีคอลัมน์รหัสอ้างอิง', bulkCodes.join(' '));
   check(psql('postgres', DB, ['-tAc', "select string_agg(user_code, ',' order by user_code) from public.profiles where full_name like 'นายครูสาม%' or full_name like 'นางครูสี่%'"]).trim() === 't3,t4',
     'นำเข้าหลายคน: เก็บรหัสอ้างอิงจากไฟล์ย้ายข้อมูล');
   await confirmInDialog(admin, 'ปิด');
