@@ -682,6 +682,34 @@ try {
   await t1b.goto(`${SITE}/#/`);
   await visible(t1b.getByText('ยอดการลาของฉัน'));
 
+  // ===== 8c. แอดมินลบใบลาที่อนุมัติแล้ว =====
+  step = 'admin-delete-leave';
+  check(await admin.locator('#topbar a[href="#/admin/leaves"]').count() >= 1, 'แอดมินมีเมนู "จัดการใบลา"');
+  const target = psql('postgres', DB, ['-tAc', "select id || '|' || coalesce(signature_path, '') || '|' || coalesce(cert_path, '') from public.leaves where status = 'approved' and snap_name like 'นางสาวครูหนึ่ง%' order by id limit 1"]).trim().split('|');
+  check(!!target[0], 'มีใบลาที่อนุมัติแล้วให้ทดสอบลบ', target.join('|'));
+  const filesBefore = psql('postgres', DB, ['-tAc', `select count(*) from storage.objects where name = '${target[1]}'`]).trim();
+  await admin.goto(`${SITE}/#/admin/leaves`);
+  await admin.getByRole('heading', { name: 'จัดการใบลา' }).waitFor();
+  await admin.locator('select[aria-label="รอบการลา"]').selectOption({ label: 'ทุกรอบ' });
+  const row = admin.locator('tr', { hasText: 'นางสาวครูหนึ่ง ใจดี' }).filter({ hasText: 'อนุญาตแล้ว' }).first();
+  await row.waitFor();
+  await row.getByRole('button', { name: 'ลบ', exact: true }).click();
+  await admin.locator('dialog[open]').getByRole('button', { name: 'ลบถาวร' }).click();
+  check(await visible(admin.locator('dialog[open]').getByText('กรุณาระบุเหตุผลที่ลบ')), 'ไม่ใส่เหตุผลลบไม่ได้');
+  await admin.locator('dialog[open] input').fill('บันทึกผิดคน <script>1</script>');
+  await admin.locator('dialog[open]').getByRole('button', { name: 'ลบถาวร' }).click();
+  check(/ลบใบลาแล้ว/.test(await toastText(admin, /ลบใบลาแล้ว/)), 'แอดมินลบใบลาที่อนุมัติแล้วสำเร็จ');
+  await admin.locator('li', { hasText: 'บันทึกผิดคน' }).waitFor();
+  check((await admin.locator('li', { hasText: 'บันทึกผิดคน' }).textContent()).includes('<script>1</script>'), 'ประวัติแสดงเหตุผลเป็นข้อความล้วน');
+  const gone = psql('postgres', DB, ['-tAc', `select (select count(*) from public.leaves where id = ${target[0]}) || '|' || (select count(*) from public.approvals where leave_id = ${target[0]}) || '|' || (select count(*) from public.admin_audit where action = 'delete_leave')`]).trim();
+  check(gone === '0|0|1', 'ใบลา+ประวัติอนุมัติถูกลบ และมีประวัติแอดมิน 1 รายการ', gone);
+  const filesAfter = target[1] ? psql('postgres', DB, ['-tAc', `select count(*) from storage.objects where name = '${target[1]}'`]).trim() : '0';
+  check(!target[1] || (filesBefore === '1' && filesAfter === '0'), 'ไฟล์ลายเซ็นที่แนบถูกลบด้วย', `${filesBefore}→${filesAfter}`);
+  await t1b.goto(`${SITE}/#/admin/leaves`);
+  check(await visible(t1b.getByText('ไม่มีสิทธิ์เข้าหน้านี้')), 'ครูเปิดหน้าจัดการใบลาไม่ได้');
+  await t1b.goto(`${SITE}/#/`);
+  await visible(t1b.getByText('ยอดการลาของฉัน'));
+
   // ===== 9. แคชเบราว์เซอร์ถือ api.js ตัวเก่า (ไม่มี deleteLeave) แต่ home.js ตัวใหม่ → โหลดไฟล์ใหม่แล้วรีเฟรชให้เอง =====
   step = 'stale-cache';
   let apiHits = 0;
