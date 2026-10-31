@@ -13,8 +13,6 @@ const PROFILE_COLUMNS = 'id, user_code, full_name, position, role, is_admin, sig
 export const auth = { user: null, profile: null };
 
 export const isApprover = (p) => !!p && p.role !== 'teacher';
-// หน้า "สรุป" เฉพาะ ผอ. และแอดมินในบทบาทครู (หัวหน้าฝ่ายบุคลากรและรองผู้อำนวยการไม่แสดง)
-export const canSummary = (p) => !!p && (p.role === 'director' || (p.is_admin && p.role === 'teacher'));
 export const canViewAll = (p) => !!p && (p.is_admin || p.role !== 'teacher');
 // มีเมนู "หน้าหลัก" และ "ยื่นใบลา" เฉพาะครูและหัวหน้าฝ่ายบุคลากรที่ไม่ใช่แอดมิน
 // รองผู้อำนวยการและ ผอ. ไม่ยื่นใบลาในระบบนี้ แอดมินใช้บัญชีในบทบาทครูแยกต่างหาก
