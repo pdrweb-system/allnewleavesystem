@@ -113,3 +113,6 @@
   dialog[open]:has(.print-list) { position: static; box-shadow: none; width: auto; max-height: none; }
   dialog[open]:has(.print-list) .dialog-actions, dialog[open]:has(.print-list) .alert { display: none; }
 }
+
+/* เรื่อง/เรียน: ป้ายกว้างเท่ากัน ข้อความขึ้นต้นแนวเดียวกัน */
+.a4 .f-lbl { display: inline-block; min-width: 11mm; }

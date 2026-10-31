@@ -116,8 +116,8 @@ export default async function leaveForm(el, { id }) {
     h('div', { class: 'f-right' }, 'วันที่ ', dots(filed.d, 'w-d'), ' เดือน ', dots(filed.m, 'w-m'), ' พ.ศ. ', dots(filed.y, 'w-y')));
 
   const lines = h('div', { class: 'f-body' },
-    h('p', {}, h('b', {}, 'เรื่อง'), ' ', dots(`ขอ${typeLabel ?? ''}`, 'w-subject')),
-    h('p', {}, h('b', {}, 'เรียน'), ' ', dots(s.addressee, 'w-subject')),
+    h('p', {}, h('b', { class: 'f-lbl' }, 'เรื่อง'), ' ', dots(`ขอ${typeLabel ?? ''}`, 'w-subject')),
+    h('p', {}, h('b', { class: 'f-lbl' }, 'เรียน'), ' ', dots(s.addressee, 'w-subject')),
     h('p', { class: 'indent' }, 'ข้าพเจ้า ', dots(leave.snap_name, 'w-name'), ' ตำแหน่ง ', dots(leave.snap_position, 'w-pos')),
     h('p', {}, 'ขอลา ', FORM_ORDER.map((code) => h('span', { class: 'tick' },
       `${BOX[leave.leave_type === code]} ${statByCode[code]?.form_label ?? code}`))),
