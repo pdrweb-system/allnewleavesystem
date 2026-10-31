@@ -331,7 +331,10 @@ try {
   await shot(t1, '04-home-mobile');
   await t1.getByRole('link', { name: '+ ยื่นใบลา' }).click();
   await t1.waitForURL(/#\/leave\/new/);
-  await t1.getByText('ลาป่วย', { exact: true }).click();
+  await t1.locator('table.table tbody tr').first().waitFor();
+  check((await t1.locator('table.table tbody tr').count()) === 4 && (await t1.locator('table.table tbody tr').first().textContent()).includes('ลาป่วย')
+    && (await t1.locator('table.table tbody td').allTextContents()).filter((c) => c === '-').length === 8, 'หน้ายื่นใบลาแสดงการลาล่าสุดครบ 4 ประเภท (ยังไม่เคยลา = -)');
+  await t1.locator('form').getByText('ลาป่วย', { exact: true }).click();
   await t1.locator('#from').fill('2026-10-22');
   await t1.locator('#to').fill('2026-10-26');
   await t1.locator('.preview-days').waitFor();
@@ -362,7 +365,7 @@ try {
 
   // วันซ้อนต้องยื่นไม่ได้
   await t1.goto(`${SITE}/#/leave/new`);
-  await t1.getByText('ลากิจ', { exact: true }).click();
+  await t1.locator('form').getByText('ลากิจ', { exact: true }).click();
   await t1.locator('#from').fill('2026-10-26');
   await t1.locator('#to').fill('2026-10-26');
   await t1.locator('.preview .alert.error').waitFor();
@@ -382,7 +385,7 @@ try {
 
   const submitSimple = async (page, type, day, reason) => {
     await page.goto(`${SITE}/#/leave/new`);
-    await page.getByText(type, { exact: true }).click();
+    await page.locator('form').getByText(type, { exact: true }).click();
     await page.locator('#from').fill(day);
     await page.locator('#to').fill(day);
     await page.locator('.preview-days').waitFor();
@@ -526,6 +529,11 @@ try {
   await sumMobile.locator('.stats').waitFor();
   await shot(sumMobile, '10-summary-mobile');
 
+  await t1.goto(`${SITE}/#/leave/new`);
+  await t1.locator('table.table tbody tr').first().waitFor();
+  const sickRow = (await t1.locator('table.table tbody tr').first().textContent()).replace(/\s+/g, ' ');
+  await shot(t1, '11b-leave-new-history', { fullPage: false });
+  check(/22 ต\.ค\. 2569 – 26 ต\.ค\. 2569 \(2 วัน\)/.test(sickRow) && /1 \/ 2/.test(sickRow), 'การลาล่าสุด: ลาป่วย 22–26 ต.ค. 2569 (2 วัน) ลามาแล้ว 1 ครั้ง / 2 วัน', sickRow);
   await t1.goto(`${SITE}/#/`);
   await t1.locator('.balance').first().waitFor();
   const sick = await t1.locator('.balance', { hasText: 'ลาป่วย' }).textContent();

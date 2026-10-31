@@ -2,17 +2,41 @@ import { h, mount, loading, toast, errorText, fmtDays, dialog, STATUS_LABEL } fr
 import { sb } from '../supabase.js';
 import { rpc, query, leaveTypes, upload } from '../api.js';
 import { navigate } from '../router.js';
-import { thDate, todayISO } from '../lib/thai-date.js';
+import { thDate, thRange, todayISO } from '../lib/thai-date.js';
+import { daysText } from './parts.js';
 import { compressPhoto } from '../lib/image.js';
 import { signatureField } from '../lib/signature.js';
 
 export default async function leaveNew(el, _params, { profile }) {
   mount(el, loading());
-  const [types, last] = await Promise.all([
+  const [types, last, balances, approved] = await Promise.all([
     leaveTypes(),
     query(sb.from('leaves').select('contact_phone').eq('user_id', profile.id)
       .order('created_at', { ascending: false }).limit(1)),
+    rpc('my_balances'),
+    query(sb.from('leaves').select('leave_type, from_date, to_date, total_days, half_day').eq('user_id', profile.id)
+      .eq('status', 'approved').order('from_date', { ascending: false }).order('id', { ascending: false }).limit(300)),
   ]);
+
+  // การลาล่าสุดของตัวเองทุกประเภท: ใบที่อนุญาตแล้วล่าสุด + ยอดที่ลามาแล้วในรอบปัจจุบัน (ครั้ง / วัน)
+  const lastByType = {};
+  for (const l of approved) lastByType[l.leave_type] ??= l;
+  const countByType = Object.fromEntries((balances.types ?? []).map((t) => [t.code, t]));
+  const history = h('section', { class: 'card stack' },
+    h('h2', {}, 'การลาล่าสุดของฉัน'),
+    h('table', { class: 'table responsive' },
+      h('thead', {}, h('tr', {}, ['ประเภทการลา', 'ลาล่าสุด', balances.round ? `ลามาแล้วในรอบ ${balances.round.label} (ครั้ง / วัน)` : 'ลามาแล้ว (ครั้ง / วัน)']
+        .map((t) => h('th', {}, t)))),
+      h('tbody', {}, types.map((t) => {
+        const l = lastByType[t.code];
+        const c = countByType[t.code];
+        const times = Number(c?.approved_times ?? 0);
+        return h('tr', {},
+          h('td', { 'data-label': 'ประเภทการลา' }, h('strong', {}, t.label)),
+          h('td', { 'data-label': 'ลาล่าสุด' }, l ? `${thRange(l.from_date, l.to_date)} (${daysText(l)})` : '-'),
+          h('td', { 'data-label': 'ครั้ง / วัน' }, times ? `${times} / ${fmtDays(c.approved_days)}` : '-'));
+      }))),
+    h('small', { class: 'muted' }, 'นับเฉพาะใบที่ผู้อำนวยการอนุญาตแล้ว'));
   const today = todayISO();
 
   // ---------- ช่องกรอก ----------
@@ -203,6 +227,7 @@ export default async function leaveNew(el, _params, { profile }) {
 
   mount(el,
     h('h1', {}, 'ยื่นใบลา'),
+    history,
     h('form', { class: 'card stack', onsubmit: onSubmit, novalidate: true },
       h('div', { class: 'readonly-grid' },
         h('div', {}, h('small', { class: 'muted' }, 'ชื่อ-สกุล'), h('div', {}, profile.full_name)),
