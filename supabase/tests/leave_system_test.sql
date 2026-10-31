@@ -835,6 +835,56 @@ begin
   if n = 1 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- แอดมินลบรูปหน้าล็อกอินไม่ได้'; end if;
   reset role;
 
+  -- ---------------------------------------------------------------------
+  -- 15. แอดมินลบใบลาที่อนุมัติแล้ว (พร้อมเหตุผล ลงประวัติ) ครู/ผู้อนุมัติที่ไม่ใช่แอดมินลบไม่ได้
+  -- ---------------------------------------------------------------------
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_t1, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin
+    res := public.admin_delete_leave(l_sick, 'ลองลบ');
+    fail := fail + 1; failures := failures || E'\n- ครูลบใบลาแบบแอดมินได้';
+  exception when insufficient_privilege then pass := pass + 1;
+  end;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_director, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin
+    res := public.admin_delete_leave(l_sick, 'ลองลบ');
+    fail := fail + 1; failures := failures || E'\n- ผอ. ที่ไม่ใช่แอดมินลบใบลาแบบแอดมินได้';
+  exception when insufficient_privilege then pass := pass + 1;
+  end;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  begin
+    res := public.admin_delete_leave(l_sick, '   ');
+    fail := fail + 1; failures := failures || E'\n- ลบใบลาโดยไม่ระบุเหตุผลได้';
+  exception when raise_exception then pass := pass + 1;
+  end;
+  begin
+    res := public.admin_delete_leave(999999999, 'ไม่มีใบนี้');
+    fail := fail + 1; failures := failures || E'\n- ลบใบลาที่ไม่มีอยู่ผ่านได้';
+  exception when raise_exception then pass := pass + 1;
+  end;
+  res := public.admin_delete_leave(l_sick, 'บันทึกผิดคน');
+  if (res ->> 'id')::bigint = l_sick then pass := pass + 1;
+  else fail := fail + 1; failures := failures || E'\n- แอดมินลบใบลาที่อนุมัติแล้วไม่ได้'; end if;
+  reset role;
+  select count(*) into n from public.leaves where id = l_sick;
+  if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- ใบลายังอยู่หลังแอดมินลบ'; end if;
+  select count(*) into n from public.approvals where leave_id = l_sick;
+  if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- ประวัติอนุมัติของใบที่ลบยังค้าง'; end if;
+  select count(*) into n from public.leave_days where leave_id = l_sick;
+  if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- วันลาของใบที่ลบยังค้าง'; end if;
+  select count(*) into n from public.line_notifications where leave_id = l_sick;
+  if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- แจ้งเตือน LINE ของใบที่ลบยังค้าง'; end if;
+  select count(*) into n from public.admin_audit
+    where action = 'delete_leave' and actor = u_admin and target = u_t1
+      and detail ->> 'reason' = 'บันทึกผิดคน' and detail ->> 'status' = 'approved'
+      and detail::text not like '%ไข้หวัด%' and detail::text not like '%0812345678%';
+  if n = 1 then pass := pass + 1; else fail := fail + 1; failures := failures || format(E'\n- ประวัติการลบใบลาไม่ถูกต้อง: %s', n); end if;
+
   raise exception 'TEST REPORT: pass=% fail=% %', pass, fail, failures;
 end
 $test$;

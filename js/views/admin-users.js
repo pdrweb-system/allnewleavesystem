@@ -356,7 +356,7 @@ export default async function adminUsersView(el, _params, { profile }) {
           ? h('button', { type: 'button', class: 'btn small', onclick: () => signatureDialog(u, load) }, 'ลายเซ็น')
           : null)));
 
-    const ACTION = { create: 'สร้างบัญชี', reset_password: 'ตั้งรหัสเข้าใช้ใหม่ให้', update: 'แก้ไขข้อมูล' };
+    const ACTION = { create: 'สร้างบัญชี', reset_password: 'ตั้งรหัสเข้าใช้ใหม่ให้', update: 'แก้ไขข้อมูล', delete_leave: 'ลบใบลาของ' };
     mount(el,
       h('div', { class: 'row space wrap' },
         h('h1', {}, 'จัดการผู้ใช้'),
