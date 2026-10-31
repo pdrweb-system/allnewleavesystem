@@ -1,7 +1,8 @@
 // แอดมินจัดการบัญชีผู้ใช้: สร้างบัญชี / ตั้งรหัสเข้าใช้ใหม่ / แก้ข้อมูล บทบาท สิทธิ์แอดมิน เปิด-ปิดบัญชี ลายเซ็นผู้อนุมัติ
 // deploy แบบ verify_jwt = false แล้วตรวจผู้เรียกเองด้านล่าง (ต้องเป็นแอดมินที่บัญชีเปิดอยู่)
 // body: { action: 'create' | 'reset_password' | 'update', ... }
-// ล็อกอินด้วยรหัสเข้าใช้ตัวเลข 8 หลักอย่างเดียว ที่แอดมินตั้งให้ (ผู้ใช้เปลี่ยนเองไม่ได้)
+// ล็อกอินด้วยรหัสเข้าใช้ตัวเลข 6 หลักอย่างเดียว ที่แอดมินตั้งให้ (ผู้ใช้เปลี่ยนเองไม่ได้)
+// รหัส 8 หลักที่ตั้งไว้ก่อนหน้านี้ยังล็อกอินได้ แต่รหัสที่ตั้งใหม่ต้องเป็น 6 หลัก
 // อีเมลของบัญชีใน Auth = แฮชของรหัส จึงหาบัญชีได้จากรหัสโดยไม่ต้องมีชื่อผู้ใช้ และรหัสซ้ำกันไม่ได้
 import { cors, json, serviceClient } from '../_shared/supabase.ts';
 
@@ -41,17 +42,16 @@ function randomChars(alphabet: string, length: number): string {
   return out;
 }
 
-// ดูเหมือนวันที่ (วันเกิด) แบบ ววดดปปปป / ปปปปดดวว / ดดววปปปป ทั้ง ค.ศ. และ พ.ศ.
+// ดูเหมือนวันที่ (วันเกิด) แบบ ววดดปป / ปปดดวว / ดดววปป (ปีสองหลัก ทั้ง ค.ศ. และ พ.ศ.)
 function looksLikeDate(c: string): boolean {
-  const ok = (d: number, m: number, y: number) =>
-    d >= 1 && d <= 31 && m >= 1 && m <= 12 && ((y >= 1900 && y <= 2100) || (y >= 2400 && y <= 2650));
+  const ok = (d: number, m: number) => d >= 1 && d <= 31 && m >= 1 && m <= 12;
   const n = (a: number, b: number) => Number(c.slice(a, b));
-  return ok(n(0, 2), n(2, 4), n(4, 8)) || ok(n(6, 8), n(4, 6), n(0, 4)) || ok(n(2, 4), n(0, 2), n(4, 8));
+  return ok(n(0, 2), n(2, 4)) || ok(n(4, 6), n(2, 4)) || ok(n(2, 4), n(0, 2));
 }
 
 function codeProblem(code: string): string | null {
-  if (!/^[0-9]{8}$/.test(code)) return 'รหัสเข้าใช้ต้องเป็นตัวเลข 8 หลัก';
-  if (/^([0-9])\1{7}$/.test(code) || '01234567890123456789'.includes(code) || '98765432109876543210'.includes(code)) {
+  if (!/^[0-9]{6}$/.test(code)) return 'รหัสเข้าใช้ต้องเป็นตัวเลข 6 หลัก';
+  if (/^([0-9])\1{5}$/.test(code) || '01234567890123456789'.includes(code) || '98765432109876543210'.includes(code)) {
     return 'รหัสนี้เดาง่ายเกินไป กรุณาใช้รหัสอื่น';
   }
   if (looksLikeDate(code)) return 'รหัสนี้ดูเหมือนวันที่ (เช่นวันเกิด) ห้ามใช้ กรุณาใช้รหัสอื่น';
@@ -60,7 +60,7 @@ function codeProblem(code: string): string | null {
 
 function randomCode(): string {
   for (;;) {
-    const code = randomChars('0123456789', 8);
+    const code = randomChars('0123456789', 6);
     if (!codeProblem(code)) return code;
   }
 }
@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
           continue;
         }
         if (err.code === 'weak_password') {
-          throw new HttpError(400, 'Supabase ไม่รับรหัสตัวเลขล้วน: ตั้ง Password Requirements เป็น "No required characters" ใน Auth settings');
+          throw new HttpError(400, 'Supabase ไม่รับรหัสนี้: ใน Auth settings ตั้ง Minimum password length = 6 และ Password Requirements = "No required characters"');
         }
         throw new HttpError(400, 'บันทึกรหัสเข้าใช้ไม่สำเร็จ');
       }

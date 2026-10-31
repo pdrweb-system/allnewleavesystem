@@ -3,7 +3,7 @@
 export const SUPABASE_URL = 'https://oqlgytbaihfjqhsriiyb.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_8gvjnN5p5symcplZCY8SDQ_ojm1h0DI';
 
-// ผู้ใช้กรอกแค่รหัสเข้าใช้ 8 หลัก หน้าเว็บแปลงเป็นอีเมลภายในของ Supabase Auth (แฮชของรหัส + โดเมนนี้)
+// ผู้ใช้กรอกแค่รหัสเข้าใช้ 6 หลัก หน้าเว็บแปลงเป็นอีเมลภายในของ Supabase Auth (แฮชของรหัส + โดเมนนี้)
 // ต้องตรงกับ LOGIN_DOMAIN ใน supabase/functions/admin-users/index.ts และ supabase/seed/set_login_code.sql
 export const LOGIN_DOMAIN = 'leave.pdr.invalid';
 
