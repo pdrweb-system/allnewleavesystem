@@ -595,6 +595,47 @@ try {
   await loginOk(admin, '846213', APPROVALS_HOME);
   check(await visible(admin.getByRole('heading', { name: 'อนุมัติใบลา' })), 'เข้าด้วยรหัสใหม่ได้');
 
+  // ===== 8b. แอดมินปรับแต่งหน้าล็อกอิน =====
+  step = 'login-page';
+  check(await admin.locator('#topbar a[href="#/admin/login"]').count() >= 1, 'แอดมินมีเมนู "หน้าล็อกอิน"');
+  await admin.goto(`${SITE}/#/admin/login`);
+  await admin.getByRole('heading', { name: 'ปรับแต่งหน้าล็อกอิน' }).waitFor();
+  const saveLp = admin.getByRole('button', { name: 'บันทึก', exact: true });
+  check(await saveLp.isDisabled(), 'ยังไม่แก้อะไร ปุ่มบันทึกกดไม่ได้');
+  await admin.locator('#lp-title').fill('ระบบลาทดสอบ');
+  await admin.locator('#lp-welcome_text').fill('ยินดีต้อนรับ <b>ครู</b>');
+  await admin.locator('#lp-button_label').fill('ล็อกอิน');
+  await admin.getByRole('button', { name: 'น้ำเงิน' }).click();
+  await admin.getByRole('button', { name: 'ไล่สี' }).click();
+  check(await visible(admin.locator('.lp-preview h1', { hasText: 'ระบบลาทดสอบ' })), 'ตัวอย่างสดเปลี่ยนชื่อระบบทันที');
+  check(await admin.locator('.lp-preview .login-welcome b').count() === 0, 'ข้อความต้อนรับไม่ตีความ HTML (กัน XSS)');
+  check(await admin.locator('.lp-preview .btn.primary', { hasText: 'ล็อกอิน' }).isDisabled(), 'ปุ่มในตัวอย่างกดไม่ได้');
+  check(await saveLp.isEnabled(), 'แก้แล้วปุ่มบันทึกกดได้');
+  await shot(admin, '12-admin-login-page');
+  await admin.locator('#lp-title').fill('');
+  await saveLp.click();
+  check(/กรุณากรอก/.test(await toastText(admin)), 'ชื่อระบบว่างบันทึกไม่ได้');
+  await admin.locator('#lp-title').fill('ระบบลาทดสอบ');
+  await saveLp.click();
+  check(/บันทึกแล้ว/.test(await toastText(admin, /บันทึกแล้ว/)), 'บันทึกหน้าล็อกอินสำเร็จ');
+  await admin.reload();
+  await admin.getByRole('heading', { name: 'ปรับแต่งหน้าล็อกอิน' }).waitFor();
+  check((await admin.locator('#lp-title').inputValue()) === 'ระบบลาทดสอบ', 'ค่าที่บันทึกยังอยู่หลังรีเฟรช');
+
+  const anon = await newPage('anon', true);
+  await anon.goto(`${SITE}/#/login`);
+  check(await visible(anon.locator('.login h1', { hasText: 'ระบบลาทดสอบ' })), 'คนที่ยังไม่ล็อกอินเห็นชื่อระบบใหม่');
+  check(await visible(anon.getByRole('button', { name: 'ล็อกอิน', exact: true })), 'ปุ่มใช้ข้อความใหม่');
+  const accentNow = await anon.locator('.login-stage').evaluate((e) => e.style.getPropertyValue('--primary').trim());
+  check(accentNow === '#1a5fb4', 'สีหลักใหม่ถูกใช้', accentNow);
+  check(await anon.locator('.login-stage.bg-gradient').count() === 1, 'พื้นหลังแบบไล่สี');
+  check((await anon.locator('.login-welcome').textContent()) === 'ยินดีต้อนรับ <b>ครู</b>', 'ข้อความต้อนรับแสดงเป็นข้อความล้วน');
+  await shot(anon, '13-login-custom');
+  await t1b.goto(`${SITE}/#/admin/login`);
+  check(await visible(t1b.getByText('ไม่มีสิทธิ์เข้าหน้านี้')), 'ครูเปิดหน้าปรับแต่งหน้าล็อกอินไม่ได้');
+  await t1b.goto(`${SITE}/#/`);
+  await visible(t1b.getByText('ยอดการลาของฉัน'));
+
   // ===== 9. แคชเบราว์เซอร์ถือ api.js ตัวเก่า (ไม่มี deleteLeave) แต่ home.js ตัวใหม่ → โหลดไฟล์ใหม่แล้วรีเฟรชให้เอง =====
   step = 'stale-cache';
   let apiHits = 0;

@@ -744,6 +744,53 @@ begin
   select count(*) into n from public.line_notifications where leave_id = l_half and event <> 'submitted';
   if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- ยกเลิกใบลาไม่ควรแจ้งกลุ่ม'; end if;
 
+  -- ---------------------------------------------------------------------
+  -- 13. ตั้งค่าหน้าล็อกอิน: anon อ่านได้ แก้ได้เฉพาะแอดมิน และตรวจรูปแบบค่า
+  -- ---------------------------------------------------------------------
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
+  set local role anon;
+  select count(*) into n from public.login_page;
+  if n = 1 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- anon อ่านตั้งค่าหน้าล็อกอินไม่ได้'; end if;
+  begin
+    update public.login_page set title = 'แฮ็ก';
+    fail := fail + 1; failures := failures || E'\n- anon แก้หน้าล็อกอินได้';
+  exception when insufficient_privilege then pass := pass + 1;
+  end;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_t1, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  update public.login_page set title = 'ครูแก้';
+  get diagnostics n = row_count;
+  if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- ครูแก้หน้าล็อกอินได้'; end if;
+  begin
+    insert into public.login_page (id) values (2);
+    fail := fail + 1; failures := failures || E'\n- เพิ่มแถวตั้งค่าหน้าล็อกอินได้';
+  exception when insufficient_privilege then pass := pass + 1;
+  end;
+  reset role;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  update public.login_page set title = 'ระบบทดสอบ', accent = '#1a73e8', background = 'gradient';
+  get diagnostics n = row_count;
+  if n = 1 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- แอดมินแก้หน้าล็อกอินไม่ได้'; end if;
+  begin
+    update public.login_page set accent = 'red';
+    fail := fail + 1; failures := failures || E'\n- สีที่ไม่ใช่ hex ผ่านได้';
+  exception when check_violation then pass := pass + 1;
+  end;
+  begin
+    update public.login_page set background = 'video';
+    fail := fail + 1; failures := failures || E'\n- พื้นหลังนอกรายการผ่านได้';
+  exception when check_violation then pass := pass + 1;
+  end;
+  begin
+    update public.login_page set title = '';
+    fail := fail + 1; failures := failures || E'\n- ชื่อระบบว่างผ่านได้';
+  exception when check_violation then pass := pass + 1;
+  end;
+  reset role;
+
   raise exception 'TEST REPORT: pass=% fail=% %', pass, fail, failures;
 end
 $test$;
