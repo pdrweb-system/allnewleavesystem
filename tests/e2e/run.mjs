@@ -146,6 +146,17 @@ const certPng = png(900, 1200, (x, y) => (y % 60 < 3 || (x > 80 && x < 820 && y 
 // ---------------- ตัวช่วยทดสอบ ----------------
 const results = [];
 const problems = [];
+
+// สร้าง PNG ทดสอบ (สีไล่ระดับ) ด้วย zlib ล้วน ไม่ต้องมีไฟล์รูปใน repo
+function makePng(w, h) {
+  const crcT = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = crcT[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (type, data) => { const t = Buffer.from(type); const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(Buffer.concat([t, data]))); return Buffer.concat([len, t, data, cr]); };
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const o = y * (w * 3 + 1) + 1 + x * 3; raw[o] = 40 + (x * 150) / w; raw[o + 1] = 80 + (y * 120) / h; raw[o + 2] = 180; }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
 let step = '';
 const check = (cond, name, detail = '') => {
   results.push({ ok: !!cond, name: `${step}: ${name}`, detail });
@@ -622,6 +633,38 @@ try {
   await admin.getByRole('heading', { name: 'ปรับแต่งหน้าล็อกอิน' }).waitFor();
   check((await admin.locator('#lp-title').inputValue()) === 'ระบบลาทดสอบ', 'ค่าที่บันทึกยังอยู่หลังรีเฟรช');
 
+  // --- รูปพื้นหลัง ---
+  await admin.getByRole('button', { name: 'รูปภาพ', exact: true }).click();
+  check(await visible(admin.getByRole('button', { name: 'อัปโหลดรูปพื้นหลัง' })), 'เลือกพื้นหลังรูปภาพแล้วเห็นปุ่มอัปโหลด');
+  await admin.locator('.lp-image input[type=file]').setInputFiles({ name: 'bg.png', mimeType: 'image/png', buffer: makePng(2400, 1350) });
+  check(/อัปโหลดแล้ว/.test(await toastText(admin, /อัปโหลดแล้ว/)), 'อัปโหลดรูปพื้นหลัง (ย่อรูปฝั่งเบราว์เซอร์ก่อน)');
+  check(await admin.locator('.lp-preview .login-stage.bg-image').count() === 1, 'ตัวอย่างสดแสดงรูปพื้นหลัง');
+  await admin.locator('.lp-image input[type=range]').fill('50');
+  await saveLp.click();
+  check(/บันทึกแล้ว/.test(await toastText(admin, /บันทึกแล้ว/)), 'บันทึกรูปพื้นหลังสำเร็จ');
+  const objs = psql('postgres', DB, ['-tAc', "select name || '|' || (metadata->>'mimetype') || '|' || (metadata->>'size') from storage.objects where bucket_id = 'login-assets'"]);
+  check(/\.jpg\|image\/jpeg\|\d+/.test(objs) && objs.trim().split('\n').length === 1, 'มีไฟล์เดียวใน login-assets เป็น JPEG', objs);
+  check(Number(objs.trim().split('|')[2]) < 2 * 1024 * 1024, 'ไฟล์ที่อัปโหลดเล็กกว่า 2 MB', objs);
+  const anonImg = await newPage('anon-img', true);
+  await anonImg.goto(`${SITE}/#/login`);
+  await anonImg.locator('.login-stage.bg-image').waitFor({ timeout: 15000 });
+  check(true, 'คนที่ยังไม่ล็อกอินเห็นรูปพื้นหลัง');
+  const dimNow = await anonImg.locator('.login-stage').evaluate((e) => e.style.getPropertyValue('--dim'));
+  check(dimNow === '0.5', 'ความเข้มฝ้า 50% ถูกใช้', dimNow);
+  await shot(anonImg, '14-login-bg-image');
+  // ลบรูป → ไฟล์ถูกลบจริง และกลับไปพื้นสีอ่อน
+  await admin.getByRole('button', { name: 'ลบรูป' }).click();
+  await saveLp.click();
+  await toastText(admin, /บันทึกแล้ว/);
+  let left = '?';
+  for (let i = 0; i < 20 && left !== '0'; i++) {
+    left = psql('postgres', DB, ['-tAc', "select count(*) from storage.objects where bucket_id = 'login-assets'"]).trim();
+    if (left !== '0') await new Promise((r) => setTimeout(r, 300));
+  }
+  check(left === '0', 'ลบรูปแล้วไฟล์ใน bucket ถูกลบด้วย', left);
+  await admin.getByRole('button', { name: 'ไล่สี', exact: true }).click();
+  await saveLp.click();
+  await new Promise((r) => setTimeout(r, 800));
   const anon = await newPage('anon', true);
   await anon.goto(`${SITE}/#/login`);
   check(await visible(anon.locator('.login h1', { hasText: 'ระบบลาทดสอบ' })), 'คนที่ยังไม่ล็อกอินเห็นชื่อระบบใหม่');

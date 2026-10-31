@@ -2,7 +2,7 @@ import { mount, errorText } from '../ui.js';
 import { signIn } from '../auth.js';
 import { navigate } from '../router.js';
 import { sb, getRemember } from '../supabase.js';
-import { buildLoginCard } from '../lib/login-card.js';
+import { buildLoginCard, loadPublicImage } from '../lib/login-card.js';
 
 export default async function login(el) {
   // ตั้งค่าหน้าล็อกอินจากแอดมิน (anon อ่านได้) ถ้าอ่านไม่ได้ใช้ค่าตั้งต้นของระบบ
@@ -47,4 +47,6 @@ export default async function login(el) {
   }
   mount(el, card.root);
   card.code.focus();
+  // รูปพื้นหลังโหลดทีหลัง ไม่หน่วงการแสดงฟอร์ม (ระหว่างรอใช้พื้นสีอ่อน)
+  if (cfg?.background === 'image' && cfg.bg_image) loadPublicImage(cfg.bg_image).then((url) => url && card.setImage(url));
 }
