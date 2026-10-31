@@ -14,7 +14,6 @@ if (window.top !== window.self) {
 const view = (path) => () => import(path).then((m) => m.default);
 
 route('/login', view('./views/login.js'), { public: true, title: 'เข้าสู่ระบบ' });
-route('/change-password', view('./views/change-password.js'), { allowMustChange: true, title: 'เปลี่ยนรหัสผ่าน' });
 route('/', view('./views/home.js'), { title: 'หน้าหลัก' });
 route('/leave/new', view('./views/leave-new.js'), { can: canFile, title: 'ยื่นใบลา' });
 route('/leave/:id', view('./views/leave-detail.js'), { title: 'รายละเอียดใบลา' });
@@ -53,7 +52,6 @@ function renderTopbar(path) {
       href, class: path === href.slice(1) ? 'active' : null,
       onclick: () => { menu.hidden = true; },
     }, label)),
-    h('a', { href: '#/change-password', onclick: () => { menu.hidden = true; } }, 'เปลี่ยนรหัสผ่าน'),
     h('button', {
       type: 'button', class: 'menu-logout',
       onclick: async () => {
@@ -124,8 +122,11 @@ async function onRoute(path) {
         h('button', { class: 'btn', onclick: async () => { await signOut(); navigate('/login'); } }, 'ออกจากระบบ')));
       return;
     }
-    if (p.must_change_password && !r.options.allowMustChange) {
-      navigate('/change-password', { replace: true });
+    if (p.must_change_password) {
+      // บัญชีจากระบบรหัสผ่านแบบเก่า: ฐานข้อมูลยังไม่ให้ใช้งานจนกว่าแอดมินตั้งรหัสเข้าใช้ใหม่
+      renderTopbar(path);
+      mount(app, notice('บัญชียังใช้งานไม่ได้', 'กรุณาให้แอดมินตั้งรหัสเข้าใช้ 8 หลักให้ใหม่',
+        h('button', { class: 'btn', onclick: async () => { await signOut(); navigate('/login'); } }, 'ออกจากระบบ')));
       return;
     }
     if (r.options.can && !r.options.can(p)) {

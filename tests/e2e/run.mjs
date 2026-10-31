@@ -43,12 +43,19 @@ psql('supabase_admin', DB, ['-c', 'create extension if not exists pgcrypto with 
 for (const f of fs.readdirSync(path.join(ROOT, 'supabase/migrations')).sort()) {
   psql('postgres', DB, ['-f', path.join(ROOT, 'supabase/migrations', f)]);
 }
+// แอดมินแบบบัญชีเก่า (ชื่อผู้ใช้ + ติดธงเปลี่ยนรหัส) แล้วตั้งรหัสเข้าใช้ด้วย supabase/seed/set_login_code.sql
+// เหมือนที่ต้องทำกับบัญชีจริงที่สร้างไว้ก่อนเปลี่ยนมาใช้รหัส 8 หลัก
 const ADMIN_ID = '11111111-1111-4111-8111-111111111111';
+const ADMIN_CODE = '73915820';
 psql('postgres', DB, ['-c', `
   insert into auth.users (id, email, encrypted_password, email_confirmed_at)
   values ('${ADMIN_ID}', 'ben@leave.pdr.invalid', extensions.crypt('Admin-pass-1', extensions.gen_salt('bf')), now());
+  insert into auth.identities (user_id, provider, provider_id, identity_data)
+  values ('${ADMIN_ID}', 'email', '${ADMIN_ID}', '{"email": "ben@leave.pdr.invalid"}');
   insert into public.profiles (id, user_code, full_name, position, role, is_admin, must_change_password)
-  values ('${ADMIN_ID}', 'ben', 'นายเบ็น ทดสอบระบบ', 'ครูชำนาญการ', 'hr', true, false);`]);
+  values ('${ADMIN_ID}', 'ben', 'นายเบ็น ทดสอบระบบ', 'ครูชำนาญการ', 'hr', true, true);`]);
+psql('postgres', DB, ['-c', fs.readFileSync(path.join(ROOT, 'supabase/seed/set_login_code.sql'), 'utf8')
+  .replace("v_code      text := '00000000'", `v_code      text := '${ADMIN_CODE}'`)]);
 
 // ---------------- บริการ ----------------
 const procs = [];
@@ -172,18 +179,13 @@ const toastText = async (page, re) => (await page.locator('#toast.show', re ? { 
 const visible = (loc, timeout = 10000) => loc.first().waitFor({ state: 'visible', timeout }).then(() => true, () => false);
 const textOf = async (loc, timeout = 10000) => ((await visible(loc, timeout)) ? (await loc.first().textContent()) ?? '' : '');
 
-async function login(page, code, password) {
+async function login(page, code) {
   await page.goto(`${SITE}/#/login`);
-  await page.getByLabel('ชื่อผู้ใช้').fill(code);
-  await page.getByLabel('รหัสผ่าน').fill(password);
+  await page.getByLabel('รหัสเข้าใช้').fill(code);
   await page.getByRole('button', { name: 'เข้าสู่ระบบ' }).click();
 }
-async function firstLogin(page, code, temp, newPassword) {
-  await login(page, code, temp);
-  await page.waitForURL(/#\/change-password/);
-  await page.getByLabel('รหัสผ่านใหม่', { exact: true }).fill(newPassword);
-  await page.getByLabel('ยืนยันรหัสผ่านใหม่').fill(newPassword);
-  await page.getByRole('button', { name: 'บันทึกรหัสผ่านใหม่' }).click();
+async function loginOk(page, code) {
+  await login(page, code);
   await page.waitForURL(/#\/$/);
 }
 async function confirmInDialog(page, label) {
@@ -199,37 +201,53 @@ try {
   await admin.goto(SITE);
   await admin.waitForURL(/#\/login/);
   await shot(admin, '01-login-desktop');
-  await login(admin, 'ben', 'wrong-password');
+  check(await admin.locator('input[autocomplete="username"]').count() === 0, 'หน้าล็อกอินไม่มีช่องชื่อผู้ใช้');
+  await login(admin, '1234');
+  check(await admin.locator('#login-code').evaluate((i) => !i.checkValidity()) && /#\/login/.test(admin.url()),
+    'รหัสไม่ครบ 8 หลักส่งไม่ได้ (เบราว์เซอร์แจ้งเตือน)');
+  await login(admin, '73915821');
   check(/ไม่ถูกต้อง/.test(await textOf(admin.locator('.alert.error'))), 'รหัสผิดแสดงข้อความภาษาไทย');
-  await login(admin, 'ben', 'Admin-pass-1');
-  await admin.waitForURL(/#\/$/);
-  check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ')), 'เข้าหน้าหลักได้');
+  await loginOk(admin, ADMIN_CODE);
+  check(await visible(admin.getByText('สวัสดี นายเบ็น ทดสอบระบบ')), 'บัญชีเก่าที่ตั้งรหัสด้วย set_login_code.sql เข้าหน้าหลักได้');
 
   await admin.goto(`${SITE}/#/admin/users`);
-  for (const [code, name, pos, role] of [
-    ['t1', 'นางสาวครูหนึ่ง ใจดี', 'ครู', 'teacher'],
-    ['t2', 'นายครูสอง ทดสอบ', 'ครูผู้ช่วย', 'teacher'],
-    ['dep', 'นางรอง ผู้อำนวยการ', 'รองผู้อำนวยการ', 'deputy'],
-    ['dir', 'นายผู้อำนวยการ ทดสอบ', 'ผู้อำนวยการ', 'director'],
+  // t2 แอดมินกำหนดรหัสเอง คนอื่นให้ระบบสุ่ม
+  for (const [key, name, pos, role, wanted] of [
+    ['t1', 'นางสาวครูหนึ่ง ใจดี', 'ครู', 'teacher', ''],
+    ['t2', 'นายครูสอง ทดสอบ', 'ครูผู้ช่วย', 'teacher', '58204716'],
+    ['dep', 'นางรอง ผู้อำนวยการ', 'รองผู้อำนวยการ', 'deputy', ''],
+    ['dir', 'นายผู้อำนวยการ ทดสอบ', 'ผู้อำนวยการ', 'director', ''],
   ]) {
     await admin.getByRole('button', { name: '+ เพิ่มผู้ใช้' }).click();
     const dlg = admin.locator('dialog[open]');
-    await dlg.getByLabel('ชื่อผู้ใช้ (ใช้ล็อกอิน)').fill(code);
     await dlg.getByLabel('ชื่อ-สกุล (พร้อมคำนำหน้า)').fill(name);
     await dlg.getByLabel('ตำแหน่ง').fill(pos);
     await dlg.getByLabel('บทบาท').selectOption(role);
+    await dlg.getByLabel('รหัสเข้าใช้').fill(wanted);
     await dlg.getByRole('button', { name: 'สร้างบัญชี' }).click();
     await admin.locator('dialog[open] .big-code').first().waitFor();
-    const codes = await admin.locator('dialog[open] .big-code').allTextContents();
-    users[code] = { temp: codes[1], name };
-    check(codes[0] === code && /^[a-z2-9]{5}-[a-z2-9]{5}$/.test(codes[1]), `สร้างบัญชี ${code}`, codes.join(' '));
+    const got = (await admin.locator('dialog[open] .big-code').first().textContent()).trim();
+    users[key] = { code: got, name };
+    check(/^[0-9]{8}$/.test(got) && (!wanted || got === wanted), `สร้างบัญชี ${key} ได้รหัส 8 หลัก${wanted ? 'ตามที่กำหนด' : 'แบบสุ่ม'}`, got);
     await confirmInDialog(admin, 'จดแล้ว ปิดหน้าต่าง');
     await admin.locator('dialog[open]').waitFor({ state: 'detached' });
   }
-  // ผู้อนุมัติซ้ำตำแหน่งต้องไม่ได้
+  // รหัสเดาง่าย / ดูเหมือนวันเกิด / ซ้ำกับคนอื่น ต้องไม่ได้
   await admin.getByRole('button', { name: '+ เพิ่มผู้ใช้' }).click();
   let dlg = admin.locator('dialog[open]');
-  await dlg.getByLabel('ชื่อผู้ใช้ (ใช้ล็อกอิน)').fill('dep2');
+  await dlg.getByLabel('ชื่อ-สกุล (พร้อมคำนำหน้า)').fill('ครูรหัสไม่ดี');
+  await dlg.getByLabel('ตำแหน่ง').fill('ครู');
+  for (const [bad, want, label] of [
+    ['12345678', /เดาง่าย/, 'เลขเรียง'], ['15012530', /วันที่/, 'วันเกิด พ.ศ.'], [users.t2.code, /ใช้ไม่ได้/, 'รหัสซ้ำกับคนอื่น'],
+  ]) {
+    await dlg.getByLabel('รหัสเข้าใช้').fill(bad);
+    await dlg.getByRole('button', { name: 'สร้างบัญชี' }).click();
+    check(want.test(await textOf(dlg.locator('.alert.error:not([hidden])'))), `ห้ามรหัส${label}`);
+  }
+  await confirmInDialog(admin, 'ยกเลิก');
+  // ผู้อนุมัติซ้ำตำแหน่งต้องไม่ได้
+  await admin.getByRole('button', { name: '+ เพิ่มผู้ใช้' }).click();
+  dlg = admin.locator('dialog[open]');
   await dlg.getByLabel('ชื่อ-สกุล (พร้อมคำนำหน้า)').fill('รองคนที่สอง');
   await dlg.getByLabel('ตำแหน่ง').fill('รอง');
   await dlg.getByLabel('บทบาท').selectOption('deputy');
@@ -240,13 +258,17 @@ try {
   // นำเข้าหลายคน (รูปแบบเดียวกับ users_plan.csv ของสคริปต์ย้ายข้อมูล)
   await admin.getByRole('button', { name: 'นำเข้าหลายคน' }).click();
   dlg = admin.locator('dialog[open]');
-  await dlg.getByLabel('รายชื่อ').fill('user_code,full_name,position,role,is_admin\nt3, นายครูสาม ทดสอบ, ครู, teacher,\nบรรทัดเสีย');
+  await dlg.getByLabel('รายชื่อ').fill('user_code,full_name,position,role,is_admin,login_code\nt3, นายครูสาม ทดสอบ, ครู, teacher,\nบรรทัดเสีย');
   await dlg.getByRole('button', { name: 'ตรวจและนำเข้า' }).click();
   check(/อ่านไม่ได้ 1 บรรทัด/.test(await textOf(dlg.locator('.alert.error'))), 'นำเข้าหลายคน: แจ้งบรรทัดที่อ่านไม่ได้');
-  await dlg.getByLabel('รายชื่อ').fill('t3, นายครูสาม ทดสอบ, ครู, teacher\nt4\tนางครูสี่ ทดสอบ\tครู\tครู');
+  await dlg.getByLabel('รายชื่อ').fill('t3, นายครูสาม ทดสอบ, ครู, teacher\nt4\tนางครูสี่ ทดสอบ\tครู\tครู\n, นายครูห้า ทดสอบ, ครู, teacher, , 61803394');
   await dlg.getByRole('button', { name: 'ตรวจและนำเข้า' }).click();
-  await admin.locator('dialog[open]', { hasText: 'สร้างสำเร็จ 2 จาก 2 บัญชี' }).waitFor({ timeout: 20000 });
-  check(await admin.locator('dialog[open] .big-code').count() === 2, 'นำเข้าหลายคน: ได้รหัสชั่วคราว 2 บัญชี');
+  await admin.locator('dialog[open]', { hasText: 'สร้างสำเร็จ 3 จาก 3 บัญชี' }).waitFor({ timeout: 20000 });
+  const bulkCodes = await admin.locator('dialog[open] .big-code').allTextContents();
+  check(bulkCodes.length === 3 && bulkCodes.every((c) => /^[0-9]{8}$/.test(c)) && bulkCodes[2] === '61803394',
+    'นำเข้าหลายคน: ได้รหัสเข้าใช้ 3 บัญชี (สุ่ม 2 กำหนดเอง 1)', bulkCodes.join(' '));
+  check(psql('postgres', DB, ['-tAc', "select string_agg(user_code, ',' order by user_code) from public.profiles where full_name like 'นายครูสาม%' or full_name like 'นางครูสี่%'"]).trim() === 't3,t4',
+    'นำเข้าหลายคน: เก็บรหัสอ้างอิงจากไฟล์ย้ายข้อมูล');
   await confirmInDialog(admin, 'ปิด');
   await admin.locator('tr', { hasText: 'นางครูสี่ ทดสอบ' }).waitFor();
 
@@ -273,8 +295,9 @@ try {
   // ===== 2. ครู 1 ล็อกอินครั้งแรก + ยื่นใบลา =====
   step = 'teacher1';
   const t1 = await newPage('t1', true);
-  await firstLogin(t1, 't1', users.t1.temp, 'Teacher1-pass');
-  check(await visible(t1.getByText('ยอดการลาของฉัน')), 'บังคับเปลี่ยนรหัสแล้วเข้าหน้าหลัก');
+  await loginOk(t1, users.t1.code);
+  check(await visible(t1.getByText('ยอดการลาของฉัน')), 'ครูเข้าด้วยรหัส 8 หลักได้ทันที');
+  check(await t1.getByText('เปลี่ยนรหัสผ่าน').count() === 0, 'ไม่มีเมนูเปลี่ยนรหัสผ่าน');
   await shot(t1, '04-home-mobile');
   await t1.getByRole('link', { name: '+ ยื่นใบลา' }).click();
   await t1.waitForURL(/#\/leave\/new/);
@@ -318,7 +341,7 @@ try {
   // ===== 3. ครู 2 เปิดใบลาของครู 1 ไม่ได้ / ยื่นแล้วยกเลิก / ยื่นแล้วถูกไม่อนุมัติ =====
   step = 'teacher2';
   const t2 = await newPage('t2', true);
-  await firstLogin(t2, 't2', users.t2.temp, 'Teacher2-pass');
+  await loginOk(t2, users.t2.code);
   await t2.goto(`${SITE}/#/leave/${leaveId}`);
   check(await visible(t2.getByText('ไม่พบใบลา')), 'ครู 2 เปิดใบลาครู 1 ไม่ได้');
   await t2.goto(`${SITE}/#/leave/${leaveId}/form`);
@@ -379,7 +402,7 @@ try {
 
   step = 'deputy';
   const dep = await newPage('dep', true);
-  await firstLogin(dep, 'dep', users.dep.temp, 'Deputy-pass-1');
+  await loginOk(dep, users.dep.code);
   await dep.goto(`${SITE}/#/approvals`);
   await dep.locator('.leave-card').first().click();
   await dep.getByRole('button', { name: 'อนุมัติ', exact: true }).click();
@@ -389,7 +412,7 @@ try {
 
   step = 'director';
   const dir = await newPage('dir', false);
-  await firstLogin(dir, 'dir', users.dir.temp, 'Director-pass-1');
+  await loginOk(dir, users.dir.code);
   check(await dir.getByRole('link', { name: '+ ยื่นใบลา' }).count() === 0, 'ผอ. ไม่มีปุ่มยื่นใบลา');
   await dir.goto(`${SITE}/#/leave/${leaveId}`);
   check(await visible(dir.getByLabel('วันที่อนุญาต')), 'ผอ. เลือกวันที่อนุญาตได้');
@@ -432,8 +455,7 @@ try {
   check(true, `ดาวน์โหลด ${download.suggestedFilename()}`);
   await shot(admin, '09-summary-desktop');
   const sumMobile = await newPage('sum-mobile', true);
-  await login(sumMobile, 'ben', 'Admin-pass-1');
-  await sumMobile.waitForURL(/#\/$/);
+  await loginOk(sumMobile, ADMIN_CODE);
   await sumMobile.goto(`${SITE}/#/summary`);
   await sumMobile.locator('.stats').waitFor();
   await shot(sumMobile, '10-summary-mobile');
@@ -444,7 +466,20 @@ try {
   check(/1 ครั้ง · 2 วัน/.test(sick), 'ยอดลาป่วยของครู 1 = 1 ครั้ง 2 วัน', sick);
   await shot(t1, '11-home-after-mobile');
 
-  // ===== 7. ปิดบัญชีแล้วล็อกอินไม่ได้ =====
+  // ===== 7. ตั้งรหัสใหม่ / ปิดบัญชีแล้วล็อกอินไม่ได้ =====
+  step = 'set-code';
+  await admin.goto(`${SITE}/#/admin/users`);
+  await admin.locator('tr', { hasText: 'นางสาวครูหนึ่ง ใจดี' }).getByRole('button', { name: 'ตั้งรหัสใหม่' }).click();
+  await confirmInDialog(admin, 'บันทึกรหัสใหม่');
+  await admin.locator('dialog[open] .big-code').waitFor();
+  const newT1 = (await admin.locator('dialog[open] .big-code').textContent()).trim();
+  await confirmInDialog(admin, 'จดแล้ว ปิดหน้าต่าง');
+  const t1b = await newPage('t1b', true);
+  await login(t1b, users.t1.code);
+  check(/ไม่ถูกต้อง/.test(await textOf(t1b.locator('.alert.error'))), 'ตั้งรหัสใหม่แล้วรหัสเดิมใช้ไม่ได้');
+  await loginOk(t1b, newT1);
+  check(await visible(t1b.getByText('ยอดการลาของฉัน')), 'รหัสใหม่เข้าใช้ได้ ข้อมูลเดิมอยู่ครบ');
+
   step = 'deactivate';
   await admin.goto(`${SITE}/#/admin/users`);
   await admin.locator('tr', { hasText: 'นายครูสอง ทดสอบ' }).getByRole('button', { name: 'แก้ไข' }).click();
@@ -452,7 +487,7 @@ try {
   await confirmInDialog(admin, 'บันทึก');
   await admin.locator('tr', { hasText: 'นายครูสอง ทดสอบ' }).getByText('ปิดบัญชี').waitFor();
   const t2b = await newPage('t2b', true);
-  await login(t2b, 't2', 'Teacher2-pass');
+  await login(t2b, users.t2.code);
   check(/ถูกปิดใช้งาน/.test(await textOf(t2b.locator('.alert.error'))), 'บัญชีที่ปิดแล้วล็อกอินไม่ได้');
 } catch (e) {
   check(false, 'ข้อผิดพลาดระหว่างทดสอบ', e.stack);

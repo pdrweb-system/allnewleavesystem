@@ -167,6 +167,14 @@ async function handleAuth(req, res, url) {
     }
     if (req.method === 'PUT' && id) {
       const b = JSON.parse((await body(req)).toString() || '{}');
+      if (b.email) {
+        try {
+          await pool.query('update auth.users set email = lower($2), updated_at = now() where id = $1', [id, b.email]);
+        } catch (e) {
+          if (e.code === '23505') return authError(res, 422, 'email_exists', 'A user with this email address has already been registered');
+          throw e;
+        }
+      }
       if (b.password) {
         await pool.query("update auth.users set encrypted_password = extensions.crypt($2, extensions.gen_salt('bf')), updated_at = now() where id = $1", [id, b.password]);
       }
