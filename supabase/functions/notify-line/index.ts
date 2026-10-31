@@ -40,6 +40,7 @@ function days(p: Payload): string {
 function row(label: string, value: string) {
   return {
     type: 'box', layout: 'baseline', spacing: 'sm',
+    borderWidth: '1px', borderColor: '#d0d5dd', cornerRadius: 'md', paddingAll: '8px',
     contents: [
       { type: 'text', text: label, color: '#8a8a8a', size: 'sm', flex: 2 },
       { type: 'text', text: value, color: '#222222', size: 'sm', flex: 5, wrap: true },
