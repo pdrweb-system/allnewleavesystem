@@ -60,7 +60,7 @@ export default async function leaveForm(el, { id }) {
   };
   const [hrSig, deputySig, directorSig] = await Promise.all(['hr', 'deputy', 'director'].map(stepSig));
 
-  const decidedDate = (a) => (a ? thDate(a.approve_date ?? a.decided_at?.slice(0, 10), { short: true }) : '');
+  const decidedDate = (a) => (a ? thDate(a.approve_date ?? a.decided_at?.slice(0, 10)) : '');
   const skipped = (step) => !steps.includes(step);
 
   // ---------- ส่วนบน: คำขอลา ----------
@@ -91,7 +91,7 @@ export default async function leaveForm(el, { id }) {
     h('div', { class: 'f-regards' }, 'ขอแสดงความนับถือ'),
     signBlock({ img: teacherSig, name: leave.name ?? leave.snap_name }));
 
-  // ---------- ส่วนล่างซ้าย: สถิติ + ผู้ตรวจสอบ ----------
+  // ---------- ส่วนล่าง: สถิติ + ผู้ตรวจสอบ (ซ้าย), ความเห็นรองฯ + คำสั่ง ผอ. (ขวา) ----------
   const statTable = h('table', { class: 'f-stats' },
     h('colgroup', {}, h('col', { class: 'c-type' }), h('col'), h('col'), h('col')),
     h('thead', {}, h('tr', {},
@@ -101,7 +101,7 @@ export default async function leaveForm(el, { id }) {
       return h('tr', {},
         h('td', {}, x.form_label ?? code),
         h('td', {}, statCell(x.before_times, x.before_days)),
-        h('td', {}, x.this_times ? statCell(x.this_times, x.this_days) : ''),
+        h('td', {}, statCell(x.this_times, x.this_days)),
         h('td', {}, statCell(x.before_times + x.this_times, Number(x.before_days) + Number(x.this_days))));
     })),
     h('caption', {}, 'หน่วย: ครั้ง / วัน'));
@@ -116,12 +116,10 @@ export default async function leaveForm(el, { id }) {
         signBlock({ img: hrSig, name: hr?.name, title: s.hr_title ?? 'หัวหน้าฝ่ายบริหารงานบุคคล', date: decidedDate(hr) }),
       ]);
 
-  const left = h('div', { class: 'f-col' },
+  const statBlock = h('div', {},
     h('h2', {}, 'สถิติการลาในปีงบประมาณนี้', round ? h('small', {}, ` (รอบ ${round.label})`) : null),
-    statTable,
-    checker);
+    statTable);
 
-  // ---------- ส่วนล่างขวา: ความเห็นรองฯ + คำสั่ง ผอ. ----------
   const dep = byStep.deputy;
   const deputyBox = h('div', { class: 'f-box' },
     h('h2', {}, 'ความเห็นรองผู้อำนวยการ'),
@@ -143,10 +141,9 @@ export default async function leaveForm(el, { id }) {
     dir?.decision === 'reject' ? h('p', {}, 'เหตุผล ', dots(dir.reason, 'w-full')) : null,
     signBlock({ img: directorSig, name: dir?.name, title: s.director_title, date: dir ? decidedDate(dir) : '' }));
 
-  const right = h('div', { class: 'f-col' }, deputyBox, directorBox);
-
+  // ตาราง 2×2 ให้กล่องผู้ตรวจสอบกับกล่อง ผอ. อยู่แถวเดียวกัน สูงเท่ากัน และเส้นลงชื่ออยู่ระดับเดียวกัน
   const page = h('article', { class: 'a4', 'aria-label': 'ใบลา' },
-    header, lines, applicant, h('div', { class: 'f-bottom' }, left, right),
+    header, lines, applicant, h('div', { class: 'f-bottom' }, statBlock, deputyBox, checker, directorBox),
     leave.legacy_pdf_url ? h('p', { class: 'f-legacy' }, 'ใบลานี้นำเข้าจากระบบเดิม ต้นฉบับอยู่ในไฟล์ PDF เดิม') : null);
 
   const statusNote = {
@@ -163,4 +160,16 @@ export default async function leaveForm(el, { id }) {
       statusNote ? h('span', { class: 'badge pending' }, statusNote) : h('span', { class: 'badge approved' }, 'อนุญาตแล้ว'),
       h('button', { type: 'button', class: 'btn primary', onclick: () => window.print() }, 'พิมพ์ / บันทึกเป็น PDF')),
     h('div', { class: 'a4-wrap' }, page));
+
+  // ใบที่ยาวกว่าปกติ (เช่น เหตุผลหลายบรรทัด) บีบระยะบรรทัด แล้วย่อตัวอักษรเหตุผล จนพอดี A4 หน้าเดียว
+  await document.fonts?.ready;
+  const fits = () => {
+    const top = page.getBoundingClientRect().top;
+    const bottom = Math.max(...[...page.children].map((c) => c.getBoundingClientRect().bottom));
+    return bottom - top <= (297 * 96) / 25.4 - parseFloat(getComputedStyle(page).paddingBottom);
+  };
+  for (const cls of ['compact', 'compact-2']) {
+    if (fits()) break;
+    page.classList.add(cls);
+  }
 }

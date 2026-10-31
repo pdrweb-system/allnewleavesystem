@@ -457,6 +457,11 @@ try {
   await t1.emulateMedia({ media: 'print' });
   await t1.pdf({ path: path.join(OUT, 'leave-form.pdf'), format: 'A4', printBackground: true, preferCSSPageSize: true });
   await t1.emulateMedia({ media: 'screen' });
+  const pdfPages = (fs.readFileSync(path.join(OUT, 'leave-form.pdf')).toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+  check(pdfPages === 1, 'ใบลาพิมพ์ได้ A4 หน้าเดียว', `${pdfPages} หน้า`);
+  check(!/(ม|ก|มี|เม|พ|มิ|ส|ต|ธ)\.(ค|พ|ย)\./.test(formText), 'วันที่ใต้ลายเซ็นใช้ชื่อเดือนเต็ม ไม่ใช้ตัวย่อ');
+  const thisLeaveCol = await t1.locator('.f-stats tbody tr td:nth-child(3)').allTextContents();
+  check(thisLeaveCol.join('|') === '1 / 2|-|-|-', 'ช่อง "ลาครั้งนี้" ใส่ - ทุกประเภทที่ไม่ได้ลา', thisLeaveCol.join('|'));
   // ใบที่ไม่อนุมัติ: ไม่มีลายเซ็นหัวหน้าฝ่าย
   await admin.goto(`${SITE}/#/leave/${rejectId}/form`);
   await admin.locator('.a4').waitFor();
