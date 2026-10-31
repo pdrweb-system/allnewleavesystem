@@ -4,13 +4,13 @@ import { rpc, query, typeLabels, deleteLeave } from '../api.js';
 import { navigate } from '../router.js';
 import { canFile, isApprover, ROLE_LABEL } from '../auth.js';
 import { thDate, thRange } from '../lib/thai-date.js';
-import { leaveCard, LEAVE_COLUMNS } from './parts.js';
+import { leaveCard, typeColor, LEAVE_COLUMNS } from './parts.js';
 
-function balanceCard(t) {
+function balanceCard(t, labels) {
   const used = Number(t.approved_days) + Number(t.pending_days);
   const quota = t.quota_days == null ? null : Number(t.quota_days);
   const pct = quota ? Math.min(100, Math.round((used / quota) * 100)) : 0;
-  return h('article', { class: 'balance' },
+  return h('article', { class: `balance ${typeColor(labels, t.code)}` },
     h('h3', {}, t.label),
     h('p', { class: 'balance-main' },
       h('span', { class: 'num' }, t.approved_times), ' ครั้ง · ',
@@ -52,7 +52,7 @@ export default async function home(el, _params, { profile }) {
   ]);
 
   const round = balances.round;
-  const cards = h('div', { class: 'balances' }, (balances.types ?? []).map(balanceCard));
+  const cards = h('div', { class: 'balances' }, (balances.types ?? []).map((t) => balanceCard(t, labels)));
   // ความกว้างแถบโควตาตั้งผ่าน CSSOM (CSP ไม่อนุญาต style attribute)
   cards.querySelectorAll('.quota-fill').forEach((s) => { s.style.width = `${s.dataset.pct}%`; });
 
