@@ -334,6 +334,8 @@ try {
   await t1.locator('table.table tbody tr').first().waitFor();
   check((await t1.locator('table.table tbody tr').count()) === 4 && (await t1.locator('table.table tbody tr').first().textContent()).includes('ลาป่วย')
     && (await t1.locator('table.table tbody td').allTextContents()).filter((c) => c === '-').length === 8, 'หน้ายื่นใบลาแสดงการลาล่าสุดครบ 4 ประเภท (ยังไม่เคยลา = -)');
+  const frames = await t1.locator('table.type-table tbody tr').evaluateAll((rows) => rows.map((r) => getComputedStyle(r).getPropertyValue('--tc').trim()));
+  check(frames.length === 4 && new Set(frames).size === 4 && frames.every((c) => /^#[0-9a-f]{6}$/i.test(c)), 'กรอบสีของแต่ละประเภทการลาไม่ซ้ำกัน', frames.join(' | '));
   await t1.locator('#leave-type').selectOption({ label: 'ลาป่วย' });
   await t1.locator('#from').fill('2026-10-22');
   await t1.locator('#to').fill('2026-10-26');

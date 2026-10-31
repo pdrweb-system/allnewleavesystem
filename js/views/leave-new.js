@@ -24,14 +24,14 @@ export default async function leaveNew(el, _params, { profile }) {
   const countByType = Object.fromEntries((balances.types ?? []).map((t) => [t.code, t]));
   const history = h('section', { class: 'card stack' },
     h('h2', {}, 'การลาล่าสุดของฉัน'),
-    h('table', { class: 'table responsive' },
+    h('table', { class: 'table responsive type-table' },
       h('thead', {}, h('tr', {}, ['ประเภทการลา', 'ลาล่าสุด', balances.round ? `ลามาแล้วในรอบ ${balances.round.label} (ครั้ง / วัน)` : 'ลามาแล้ว (ครั้ง / วัน)']
         .map((t) => h('th', {}, t)))),
-      h('tbody', {}, types.map((t) => {
+      h('tbody', {}, types.map((t, i) => {
         const l = lastByType[t.code];
         const c = countByType[t.code];
         const times = Number(c?.approved_times ?? 0);
-        return h('tr', {},
+        return h('tr', { class: `tc-${i % 6}` }, // กรอบสีประจำประเภท ไม่ซ้ำกัน (เรียงตามลำดับประเภท)
           h('td', { 'data-label': 'ประเภทการลา' }, h('strong', {}, t.label)),
           h('td', { 'data-label': 'ลาล่าสุด' }, l ? `${thRange(l.from_date, l.to_date)} (${daysText(l)})` : '-'),
           h('td', { 'data-label': 'ครั้ง / วัน' }, times ? `${times} / ${fmtDays(c.approved_days)}` : '-'));
