@@ -6,7 +6,7 @@ export const STEPS = ['hr', 'deputy', 'director'];
 export const STEP_LABEL = { hr: 'หัวหน้าฝ่ายบุคลากร', deputy: 'รองผู้อำนวยการ', director: 'ผู้อำนวยการ' };
 
 export const LEAVE_COLUMNS = 'id, user_id, snap_name, snap_position, leave_type, from_date, to_date, total_days, '
-  + 'half_day, status, steps, filed_date, created_at, cert_path';
+  + 'half_day, status, steps, filed_date, created_at, cert_path, signature_path';
 
 export function daysText(leave) {
   return leave.half_day ? 'ครึ่งวัน' : `${fmtDays(leave.total_days)} วัน`;

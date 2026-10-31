@@ -36,6 +36,8 @@ declare
   l_dep_own bigint;
   l_feb bigint;
   l_now bigint;
+  l_del bigint;
+  cert_del text;
   sig_t1 text;
   sig_t2 text;
   cert_t1 text;
@@ -433,6 +435,47 @@ begin
   exception when others then
     fail := fail + 1; failures := failures || E'\n- ยื่นวันเดียวกับใบที่ยกเลิกแล้วไม่ได้: ' || sqlerrm;
   end;
+
+  -- ---------------------------------------------------------------------
+  -- 6.1 ลบใบลาที่ยกเลิกแล้ว (เจ้าของเท่านั้น) พร้อมไฟล์ที่แนบ
+  -- ---------------------------------------------------------------------
+  perform set_config('request.jwt.claims', json_build_object('sub', u_t2, 'role', 'authenticated')::text, true);
+  begin
+    res := public.delete_leave(l_half);
+    fail := fail + 1; failures := failures || E'\n- ครู 2 ลบใบลาครู 1 ได้';
+  exception when others then pass := pass + 1;
+  end;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_t1, 'role', 'authenticated')::text, true);
+  begin
+    res := public.delete_leave(l_sick);
+    fail := fail + 1; failures := failures || E'\n- ลบใบลาที่ยังไม่ยกเลิกได้';
+  exception when others then pass := pass + 1;
+  end;
+  perform set_config('storage.allow_delete_query', 'true', true);
+  delete from storage.objects where bucket_id = 'leave-signatures' and name = sig_t1;
+  get diagnostics n = row_count;
+  if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- ลบไฟล์ที่ใบลาอื่นยังใช้อยู่ได้'; end if;
+  cert_del := u_t1 || '/' || gen_random_uuid() || '.jpg';
+  insert into storage.objects (bucket_id, name, owner, owner_id) values ('leave-certs', cert_del, u_t1, u_t1::text);
+  res := public.submit_leave('sick', '2090-01-26', '2090-01-26', false, 'ไม่สบาย', '081', sig_t1, cert_del);
+  l_del := (res ->> 'id')::bigint;
+  delete from storage.objects where bucket_id = 'leave-certs' and name = cert_del;
+  get diagnostics n = row_count;
+  if n = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- ลบไฟล์ของใบที่ยังไม่ยกเลิกได้'; end if;
+  res := public.cancel_leave(l_del);
+  delete from storage.objects where bucket_id = 'leave-certs' and name = cert_del;
+  get diagnostics n = row_count;
+  if n = 1 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- ลบไฟล์ใบรับรองของใบที่ยกเลิกแล้วไม่ได้'; end if;
+  res := public.delete_leave(l_del);
+  select count(*) into n from public.leaves where id = l_del;
+  select count(*) into m from public.leave_days where leave_id = l_del;
+  if n = 0 and m = 0 then pass := pass + 1; else fail := fail + 1; failures := failures || E'\n- ลบใบที่ยกเลิกแล้วไม่ครบ (ใบ/วันลา)'; end if;
+  begin
+    res := public.delete_leave(l_del);
+    fail := fail + 1; failures := failures || E'\n- ลบใบลาที่ลบไปแล้วซ้ำได้';
+  exception when others then pass := pass + 1;
+  end;
+  perform set_config('storage.allow_delete_query', 'false', true);
 
   -- ---------------------------------------------------------------------
   -- 7. สถิติตามรอบ (ใบคาบเกี่ยวสองรอบ) และข้อมูลใบลา

@@ -233,6 +233,22 @@ async function handleStorage(req, res, url) {
       [m[1], prefix ? `${prefix}/%` : '%', `%${b.search ?? ''}%`, b.limit ?? 100]).then((r) => r.rows));
     return send(res, 200, rows.map((r) => ({ ...r, name: prefix ? r.name.slice(prefix.length + 1) : r.name })));
   }
+  if (req.method === 'DELETE' && (m = /^\/object\/([^/]+)$/.exec(p))) {
+    // supabase-js remove(): DELETE /object/<bucket> {prefixes:[...]} — RLS ของ storage.objects ตัดสินว่าลบได้หรือไม่
+    const b = JSON.parse((await body(req)).toString() || '{}');
+    const removed = [];
+    for (const name of b.prefixes ?? []) {
+      const rows = await asCaller(c, async (db) => {
+        await db.query("select set_config('storage.allow_delete_query', 'true', true)");
+        return (await db.query('delete from storage.objects where bucket_id = $1 and name = $2 returning name', [m[1], name])).rows;
+      });
+      for (const r of rows) {
+        await fs.rm(path.join(STORAGE_DIR, m[1], r.name), { force: true });
+        removed.push({ name: r.name, bucket_id: m[1] });
+      }
+    }
+    return send(res, 200, removed);
+  }
   m = /^\/object\/([^/]+)\/(.+)$/.exec(p);
   if (!m) return storageError(res, 404, 'not_found', 'route not emulated');
   const [, bucket, name] = m;

@@ -1,8 +1,9 @@
-import { h, mount, loading, fmtDays } from '../ui.js';
+import { h, mount, loading, fmtDays, confirmDialog, toast, errorText } from '../ui.js';
 import { sb } from '../supabase.js';
-import { rpc, query, typeLabels } from '../api.js';
+import { rpc, query, typeLabels, deleteLeave } from '../api.js';
+import { navigate } from '../router.js';
 import { canFile, isApprover, ROLE_LABEL } from '../auth.js';
-import { thDate } from '../lib/thai-date.js';
+import { thDate, thRange } from '../lib/thai-date.js';
 import { leaveCard, LEAVE_COLUMNS } from './parts.js';
 
 function balanceCard(t) {
@@ -22,6 +23,19 @@ function balanceCard(t) {
         h('div', { class: 'quota-bar' }, h('span', { class: 'quota-fill', dataset: { pct: String(pct) } })),
         h('small', {}, `ใช้ ${fmtDays(used)} / ${fmtDays(quota)} วัน${t.quota_mode === 'block' ? ' (เกินไม่ได้)' : ''}`))
       : null);
+}
+
+async function removeLeave(leave, labels) {
+  if (!await confirmDialog('ลบใบลา',
+    `ลบใบลา${labels[leave.leave_type] ?? ''} ${thRange(leave.from_date, leave.to_date)} ที่ยกเลิกแล้วนี้ถาวร? `
+    + 'ไฟล์ลายเซ็นและใบรับรองแพทย์ที่แนบไว้จะถูกลบด้วย และกู้คืนไม่ได้', { okText: 'ลบ', danger: true })) return;
+  try {
+    await deleteLeave(leave);
+    toast('ลบใบลาแล้ว');
+    navigate('/', { replace: true });
+  } catch (e) {
+    toast(errorText(e), 'error');
+  }
 }
 
 export default async function home(el, _params, { profile }) {
@@ -72,6 +86,13 @@ export default async function home(el, _params, { profile }) {
       : h('section', { class: 'section' },
         h('h2', {}, 'ใบลาของฉัน'),
         mine.length
-          ? h('div', { class: 'list' }, mine.map((l) => leaveCard(l, labels)))
+          ? h('div', { class: 'list' }, mine.map((l) => h('div', { class: 'leave-item' },
+            leaveCard(l, labels),
+            l.status === 'cancelled'
+              ? h('button', {
+                type: 'button', class: 'btn danger ghost small', 'aria-label': `ลบใบลา ${labels[l.leave_type] ?? ''}`,
+                onclick: () => removeLeave(l, labels),
+              }, 'ลบ')
+              : null)))
           : h('p', { class: 'empty' }, 'ยังไม่มีใบลา')));
 }

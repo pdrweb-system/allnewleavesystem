@@ -67,6 +67,18 @@ export function fileUrl(bucket, path) {
   return blobUrls.get(key);
 }
 
+// ลบใบลาที่ยกเลิกแล้วของตัวเอง: ลบไฟล์ลายเซ็น/ใบรับรองแพทย์ก่อน (ลบซ้ำได้ ไม่มีไฟล์ = ผ่าน) แล้วลบใบลา
+export async function deleteLeave(leave) {
+  for (const [bucket, path] of [['leave-signatures', leave.signature_path], ['leave-certs', leave.cert_path]]) {
+    if (!path) continue;
+    const { error } = await sb.storage.from(bucket).remove([path]);
+    if (error) throw error;
+  }
+  const res = await rpc('delete_leave', { p_leave_id: leave.id });
+  clearCaches();
+  return res;
+}
+
 // เรียก Edge Function แล้วแปลง error เป็นข้อความไทยจากฟังก์ชัน
 export async function callFunction(name, body) {
   const { data, error } = await sb.functions.invoke(name, { body });
