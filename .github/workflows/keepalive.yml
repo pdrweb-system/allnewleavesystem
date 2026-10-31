@@ -15,7 +15,7 @@ permissions:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -26,10 +26,12 @@ jobs:
           config="$(gh api "repos/${GITHUB_REPOSITORY}/contents/js/config.js?ref=${GITHUB_SHA}" --jq .content | base64 -d)"
           url="$(printf '%s' "$config" | sed -n "s/^export const SUPABASE_URL = '\(.*\)';$/\1/p")"
           key="$(printf '%s' "$config" | sed -n "s/^export const SUPABASE_KEY = '\(.*\)';$/\1/p")"
-          code="$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 20 \
+          # ลองซ้ำราว 6 นาทีทุกกรณี รวม DNS ของเครื่อง GitHub ที่บางครั้งหาโฮสต์ไม่เจอชั่วคราว
+          code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 20 --retry 6 --retry-delay 60 --retry-all-errors \
             -X POST "${url}/rest/v1/rpc/keepalive" -H "apikey: ${key}" -H 'Content-Type: application/json' -d '{}')"
           echo "keepalive HTTP ${code}"
           test "${code}" = 200
 
       - name: Keep this schedule enabled
+        if: ${{ !cancelled() }}
         run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/keepalive.yml/enable"
