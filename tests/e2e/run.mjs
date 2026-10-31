@@ -460,6 +460,12 @@ try {
   const pdfPages = (fs.readFileSync(path.join(OUT, 'leave-form.pdf')).toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
   check(pdfPages === 1, 'ใบลาพิมพ์ได้ A4 หน้าเดียว', `${pdfPages} หน้า`);
   check(!/(ม|ก|มี|เม|พ|มิ|ส|ต|ธ)\.(ค|พ|ย)\./.test(formText), 'วันที่ใต้ลายเซ็นใช้ชื่อเดือนเต็ม ไม่ใช้ตัวย่อ');
+  check(formText.includes('ความเห็นผู้บังคับบัญชา') && formText.includes('คำสั่ง') && !formText.includes('ความเห็นรองผู้อำนวยการ'),
+    'ความเห็นรองฯ และคำสั่ง ผอ. อยู่ในส่วน "ความเห็นผู้บังคับบัญชา" ตามแบบราชการ');
+  check(await t1.locator('.a4 .f-sec').evaluateAll((els) => els.length === 2 && els.every((e) => getComputedStyle(e).borderTopStyle === 'none')),
+    'ส่วนลายเซ็นผู้อนุมัติไม่มีกรอบ');
+  check(await t1.locator('.a4 .fill.w-title').evaluateAll((els) => els.length === 3 && els.every((e) => e.scrollWidth <= e.clientWidth)),
+    'ตำแหน่งผู้อนุมัติอยู่บรรทัดเดียวไม่ล้นเส้น');
   const thisLeaveCol = await t1.locator('.f-stats tbody tr td:nth-child(3)').allTextContents();
   check(thisLeaveCol.join('|') === '1 / 2|-|-|-', 'ช่อง "ลาครั้งนี้" ใส่ - ทุกประเภทที่ไม่ได้ลา', thisLeaveCol.join('|'));
   // ใบที่ไม่อนุมัติ: ไม่มีลายเซ็นหัวหน้าฝ่าย
