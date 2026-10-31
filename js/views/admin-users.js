@@ -14,9 +14,9 @@ function roleSelect(value) {
 
 // ช่องรหัสเข้าใช้ 6 หลัก เว้นว่าง = ระบบสุ่มให้
 function codeInput() {
-  return h('input', { inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', autocomplete: 'off', placeholder: 'เว้นว่างให้ระบบสุ่ม' });
+  return h('input', { maxlength: '72', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', placeholder: 'เว้นว่างให้ระบบสุ่ม' });
 }
-const CODE_HINT = 'ตัวเลข 6 หลัก ห้ามซ้ำกับผู้อื่น ห้ามเลขซ้ำหรือเลขเรียง (เช่น 123456) ใช้วันเกิดได้ แต่เดาง่าย — แนะนำให้ระบบสุ่ม';
+const CODE_HINT = 'ครู: ตัวเลข 6 หลัก ห้ามเลขซ้ำหรือเลขเรียง (เช่น 123456) · หัวหน้าฝ่าย/รองฯ/ผอ.: ตั้งแบบไหนก็ได้ · ห้ามซ้ำกับผู้อื่น — แนะนำให้ระบบสุ่ม';
 
 async function showLoginCode(fullName, code) {
   await dialog({
@@ -144,7 +144,7 @@ function parseBulk(text) {
     if (cells[0] && !/^[a-z0-9][a-z0-9._-]{0,31}$/i.test(cells[0])) cells.unshift('');
     const [ref = '', name, position, role = 'teacher', admin = '', code = ''] = cells;
     const r = ROLE_ALIASES[role.toLowerCase()] ?? ROLE_ALIASES[role || 'teacher'];
-    if (!name || !position || !r || (code && !/^[0-9]{6}$/.test(code))) errors.push(`บรรทัด ${i + 1}: ${line.trim()}`);
+    if (!name || !position || !r || (code && code.length > 72)) errors.push(`บรรทัด ${i + 1}: ${line.trim()}`);
     else {
       rows.push({
         user_code: ref.toLowerCase(), full_name: name, position, role: r,

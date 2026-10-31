@@ -6,8 +6,8 @@ import { SITE_NAME, SCHOOL_NAME } from '../config.js';
 
 export default function login(el) {
   const code = h('input', {
-    name: 'password', type: 'password', autocomplete: 'current-password', inputmode: 'numeric',
-    pattern: '[0-9]{6,8}', maxlength: '8', required: true,
+    name: 'password', type: 'password', autocomplete: 'current-password', autocapitalize: 'none', spellcheck: 'false',
+    maxlength: '72', required: true,
   });
   const remember = h('input', { type: 'checkbox', checked: getRemember() });
   const message = h('div', { class: 'alert error', role: 'alert', hidden: true });
@@ -42,7 +42,7 @@ export default function login(el) {
       }
     },
   },
-  h('div', { class: 'field' }, h('label', { for: 'login-code' }, 'รหัสเข้าใช้ (ตัวเลข 6 หลัก)'), Object.assign(code, { id: 'login-code' })),
+  h('div', { class: 'field' }, h('label', { for: 'login-code' }, 'รหัสเข้าใช้'), Object.assign(code, { id: 'login-code' })),
   h('label', { class: 'check' }, remember, ' จดจำการเข้าสู่ระบบในเครื่องนี้'),
   h('small', { class: 'hint' }, 'ถ้าใช้เครื่องร่วมกับผู้อื่น อย่าติ๊กช่องนี้'),
   message,

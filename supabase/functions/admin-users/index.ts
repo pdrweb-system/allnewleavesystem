@@ -42,7 +42,11 @@ function randomChars(alphabet: string, length: number): string {
   return out;
 }
 
-function codeProblem(code: string): string | null {
+// ครู: ตัวเลข 6 หลัก ห้ามเลขซ้ำ/เลขเรียง · หัวหน้าฝ่าย/รองฯ/ผอ.: แอดมินตั้งเองได้ทุกแบบ (ไม่จำกัดความยาว/ตัวอักษร ยกเว้นเกิน 72 ตัวที่ Supabase รับไม่ได้)
+function codeProblem(code: string, role: Role): string | null {
+  if (role !== 'teacher') {
+    return code.length >= 1 && code.length <= 72 ? null : 'กรุณาใส่รหัสเข้าใช้ (ไม่เกิน 72 ตัว)';
+  }
   if (!/^[0-9]{6}$/.test(code)) return 'รหัสเข้าใช้ต้องเป็นตัวเลข 6 หลัก';
   if (/^([0-9])\1{5}$/.test(code) || '01234567890123456789'.includes(code) || '98765432109876543210'.includes(code)) {
     return 'รหัสนี้เดาง่ายเกินไป กรุณาใช้รหัสอื่น';
@@ -53,14 +57,14 @@ function codeProblem(code: string): string | null {
 function randomCode(): string {
   for (;;) {
     const code = randomChars('0123456789', 6);
-    if (!codeProblem(code)) return code;
+    if (!codeProblem(code, 'teacher')) return code;
   }
 }
 
-function requestedCode(value: unknown): string | null {
+function requestedCode(value: unknown, role: Role): string | null {
   if (value === undefined || value === null || value === '') return null;
   const code = typeof value === 'string' ? value.trim() : '';
-  const problem = codeProblem(code);
+  const problem = codeProblem(code, role);
   if (problem) throw new HttpError(400, problem);
   return code;
 }
@@ -137,7 +141,7 @@ Deno.serve(async (req) => {
           continue;
         }
         if (err.code === 'weak_password') {
-          throw new HttpError(400, 'Supabase ไม่รับรหัสนี้: ใน Auth settings ตั้ง Minimum password length = 6 และ Password Requirements = "No required characters"');
+          throw new HttpError(400, 'Supabase ไม่รับรหัสนี้ (สั้นกว่าที่ตั้งไว้): ใน Auth settings ลด Minimum password length ให้ไม่เกินความยาวของรหัส และตั้ง Password Requirements = "No required characters"');
         }
         throw new HttpError(400, 'บันทึกรหัสเข้าใช้ไม่สำเร็จ');
       }
@@ -155,7 +159,7 @@ Deno.serve(async (req) => {
         const position = text(body.position, 'ตำแหน่ง');
         const r = role(body.role ?? 'teacher');
         const isAdmin = body.is_admin === true;
-        const requested = requestedCode(body.login_code);
+        const requested = requestedCode(body.login_code, r);
 
         if (userCode) {
           const { data: dup } = await admin.from('profiles').select('id').eq('user_code', userCode).maybeSingle();
@@ -194,10 +198,10 @@ Deno.serve(async (req) => {
 
       case 'reset_password': {
         const id = userId(body.user_id);
-        const { data: target } = await admin.from('profiles').select('id, active').eq('id', id).maybeSingle();
+        const { data: target } = await admin.from('profiles').select('id, active, role').eq('id', id).maybeSingle();
         if (!target) throw new HttpError(404, 'ไม่พบผู้ใช้');
         if (!target.active) throw new HttpError(400, 'บัญชีนี้ถูกปิดอยู่ กรุณาเปิดบัญชีก่อน');
-        const loginCode = await withLoginCode(requestedCode(body.login_code), async (email, password) => {
+        const loginCode = await withLoginCode(requestedCode(body.login_code, target.role as Role), async (email, password) => {
           const { error } = await admin.auth.admin.updateUserById(id, { email, password, email_confirm: true });
           if (error) console.error('updateUserById failed', error.code, error.message);
           return error ? { code: error.code ?? 'unknown' } : null;
