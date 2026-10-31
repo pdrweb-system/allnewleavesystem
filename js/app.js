@@ -1,5 +1,5 @@
 import { sb } from './supabase.js';
-import { auth, loadSession, signOut, canFile, canViewAll, isApprover, ROLE_LABEL } from './auth.js';
+import { auth, loadSession, signOut, canFile, canViewAll, isApprover, hasHome, landingPath, ROLE_LABEL } from './auth.js';
 import { route, matchRoute, navigate, startRouter, currentPath } from './router.js';
 import { h, mount, errorBox, loading } from './ui.js';
 import { clearCaches } from './api.js';
@@ -27,12 +27,15 @@ const app = document.getElementById('app');
 const topbar = document.getElementById('topbar');
 let sessionLoaded = false;
 let renderSeq = 0;
+let landed = false; // เข้าหน้าแรกของบทบาทแล้วหรือยัง (รีเซ็ตเมื่ออยู่หน้าล็อกอิน)
 let cleanup = null;
 
 function navLinks(p) {
-  const links = p.is_admin ? [] : [['#/', 'หน้าหลัก']]; // บัญชีแอดมินไม่มีหน้าหลัก/ยื่นใบลา
+  const links = [];
+  if (isApprover(p)) links.push(['#/approvals', 'อนุมัติใบลา']); // ผู้อนุมัติเริ่มที่หน้าอนุมัติ
+  if (hasHome(p)) links.push(['#/', 'หน้าหลัก']);
   if (canFile(p)) links.push(['#/leave/new', 'ยื่นใบลา']);
-  if (canViewAll(p)) links.push(['#/approvals', isApprover(p) ? 'อนุมัติใบลา' : 'ใบลาทั้งหมด']);
+  if (!isApprover(p) && canViewAll(p)) links.push(['#/approvals', 'ใบลาทั้งหมด']);
   if (canViewAll(p)) links.push(['#/summary', 'สรุป']);
   if (p.is_admin) links.push(['#/admin/users', 'ผู้ใช้'], ['#/admin/settings', 'ตั้งค่า']);
   return links;
@@ -68,7 +71,7 @@ function renderTopbar(path) {
     },
   }, h('span', { 'aria-hidden': 'true' }, '☰'), h('span', { class: 'menu-btn-name' }, p.full_name));
   mount(topbar,
-    h('a', { class: 'brand', href: p.is_admin ? '#/admin/users' : '#/' }, SITE_NAME),
+    h('a', { class: 'brand', href: `#${landingPath(p)}` }, SITE_NAME),
     h('nav', { class: 'nav-inline' }, navLinks(p).map(([href, label]) =>
       h('a', { href, class: path === href.slice(1) ? 'active' : null }, label))),
     toggle,
@@ -103,6 +106,7 @@ async function onRoute(path) {
     return;
   }
   document.title = `${r.options.title ?? ''} · ${SITE_NAME}`;
+  if (r.options.public) landed = false;
   document.body.classList.toggle('printable', !!r.options.printable);
 
   try {
@@ -139,11 +143,16 @@ async function onRoute(path) {
         h('button', { class: 'btn', onclick: async () => { await signOut(); navigate('/login'); } }, 'ออกจากระบบ')));
       return;
     }
-    if (p.is_admin && path === '/') {
-      // บัญชีแอดมินไม่มีหน้าหลัก: เข้าหน้าจัดการผู้ใช้แทน
-      navigate('/admin/users', { replace: true });
-      return;
+    if (path === '/' && (!hasHome(p) || !landed)) {
+      // เปิดเว็บ/เข้าสู่ระบบครั้งแรกเข้าหน้าแรกของบทบาท (ผู้อนุมัติ = หน้าอนุมัติ) บัญชีที่ไม่มีหน้าหลักเข้า '/' ไม่ได้เลย
+      landed = true;
+      const to = landingPath(p);
+      if (to !== '/') {
+        navigate(to, { replace: true });
+        return;
+      }
     }
+    landed = true;
     if (r.options.can && !r.options.can(p)) {
       renderTopbar(path);
       mount(app, notice('ไม่มีสิทธิ์เข้าหน้านี้', 'หน้านี้สำหรับผู้มีสิทธิ์เฉพาะเท่านั้น',

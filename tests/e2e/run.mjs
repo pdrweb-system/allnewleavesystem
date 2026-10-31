@@ -196,7 +196,7 @@ async function loginOk(page, code, home = /#\/$/) {
   await login(page, code);
   await page.waitForURL(home);
 }
-const ADMIN_HOME = /#\/admin\/users/; // บัญชีแอดมินไม่มีหน้าหลัก
+const APPROVALS_HOME = /#\/approvals/; // ผู้อนุมัติ (หัวหน้าฝ่าย/รองฯ/ผอ.) เปิดหน้าอนุมัติเป็นหน้าแรก
 async function confirmInDialog(page, label) {
   await page.locator('dialog[open]').getByRole('button', { name: label, exact: true }).click();
 }
@@ -215,15 +215,16 @@ try {
   check(/ไม่ถูกต้อง/.test(await textOf(admin.locator('.alert.error'))), 'รหัสสั้นที่ไม่มีในระบบเข้าไม่ได้ (แจ้งว่ารหัสไม่ถูกต้อง)');
   await login(admin, '739159');
   check(/ไม่ถูกต้อง/.test(await textOf(admin.locator('.alert.error'))), 'รหัสผิดแสดงข้อความภาษาไทย');
-  await loginOk(admin, ADMIN_CODE, ADMIN_HOME);
-  check(await visible(admin.getByRole('heading', { name: 'จัดการผู้ใช้' })), 'บัญชีเก่าที่ตั้งรหัสด้วย set_login_code.sql เข้าได้ และแอดมินเข้าหน้าจัดการผู้ใช้แทนหน้าหลัก');
+  await loginOk(admin, ADMIN_CODE, APPROVALS_HOME);
+  check(await visible(admin.getByRole('heading', { name: 'อนุมัติใบลา' })), 'บัญชีเก่าที่ตั้งรหัสด้วย set_login_code.sql เข้าได้ และหัวหน้าฝ่ายเปิดหน้าอนุมัติเป็นหน้าแรก');
   check(await admin.locator('#topbar a[href="#/"]').count() === 0 && await admin.locator('#topbar a[href="#/leave/new"]').count() === 0,
     'เมนูของบัญชีแอดมินไม่มี หน้าหลัก และ ยื่นใบลา');
   await admin.goto(`${SITE}/#/leave/new`);
   check(await visible(admin.getByText('ไม่มีสิทธิ์เข้าหน้านี้')), 'บัญชีแอดมินเปิดหน้ายื่นใบลาไม่ได้');
   await admin.goto(`${SITE}/#/`);
-  await admin.waitForURL(ADMIN_HOME);
-  check(true, 'แอดมินเข้าหน้าหลักแล้วถูกพาไปหน้าจัดการผู้ใช้');
+  await admin.waitForURL(APPROVALS_HOME);
+  check(true, 'แอดมินที่เป็นหัวหน้าฝ่ายเข้า / แล้วถูกพาไปหน้าอนุมัติ (ไม่มีหน้าหลัก)');
+  check(await admin.locator('#topbar a[href="#/approvals"]').count() >= 1, 'เมนูอนุมัติใบลามีสำหรับผู้อนุมัติ');
 
   await admin.goto(`${SITE}/#/admin/users`);
   // t2 แอดมินกำหนดรหัสเอง คนอื่นให้ระบบสุ่ม
@@ -449,7 +450,8 @@ try {
 
   step = 'deputy';
   const dep = await newPage('dep', true);
-  await loginOk(dep, users.dep.code);
+  await loginOk(dep, users.dep.code, APPROVALS_HOME);
+  check(await dep.locator('#topbar a[href="#/"]').count() === 0 && await dep.locator('#topbar a[href="#/leave/new"]').count() === 0, 'รองฯ ไม่มีเมนูหน้าหลักและยื่นใบลา');
   check(!/^[0-9]{6}$/.test(users.dep.code), 'รองฯ เข้าด้วยรหัสอิสระที่แอดมินตั้งเอง (ไม่ใช่เลข 6 หลัก)');
   await dep.goto(`${SITE}/#/approvals`);
   await dep.locator('.leave-card').first().click();
@@ -460,7 +462,8 @@ try {
 
   step = 'director';
   const dir = await newPage('dir', false);
-  await loginOk(dir, users.dir.code);
+  await loginOk(dir, users.dir.code, APPROVALS_HOME);
+  check(await dir.locator('#topbar a[href="#/"]').count() === 0, 'ผอ. ไม่มีเมนูหน้าหลัก');
   check(await dir.getByRole('link', { name: '+ ยื่นใบลา' }).count() === 0, 'ผอ. ไม่มีปุ่มยื่นใบลา');
   await dir.goto(`${SITE}/#/leave/${leaveId}`);
   check(await visible(dir.getByLabel('วันที่อนุญาต')), 'ผอ. เลือกวันที่อนุญาตได้');
@@ -526,7 +529,7 @@ try {
   check(true, `ดาวน์โหลด ${download.suggestedFilename()}`);
   await shot(admin, '09-summary-desktop');
   const sumMobile = await newPage('sum-mobile', true);
-  await loginOk(sumMobile, ADMIN_CODE, ADMIN_HOME);
+  await loginOk(sumMobile, ADMIN_CODE, APPROVALS_HOME);
   await sumMobile.goto(`${SITE}/#/summary`);
   await sumMobile.locator('.stats').waitFor();
   await shot(sumMobile, '10-summary-mobile');
@@ -580,8 +583,8 @@ try {
   await confirmInDialog(admin, 'จดแล้ว ปิดหน้าต่าง');
   await admin.waitForURL(/#\/login/);
   check(/เปลี่ยนรหัสของคุณแล้ว/.test(await textOf(admin.locator('.alert.error'))), 'เปลี่ยนรหัสของตัวเองแล้วพาไปล็อกอินใหม่พร้อมข้อความ');
-  await loginOk(admin, '846213', ADMIN_HOME);
-  check(await visible(admin.getByRole('heading', { name: 'จัดการผู้ใช้' })), 'เข้าด้วยรหัสใหม่ได้');
+  await loginOk(admin, '846213', APPROVALS_HOME);
+  check(await visible(admin.getByRole('heading', { name: 'อนุมัติใบลา' })), 'เข้าด้วยรหัสใหม่ได้');
 
   // ===== 9. แคชเบราว์เซอร์ถือ api.js ตัวเก่า (ไม่มี deleteLeave) แต่ home.js ตัวใหม่ → โหลดไฟล์ใหม่แล้วรีเฟรชให้เอง =====
   step = 'stale-cache';
