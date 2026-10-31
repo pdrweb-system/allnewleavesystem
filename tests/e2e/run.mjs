@@ -651,6 +651,9 @@ try {
   check(true, 'คนที่ยังไม่ล็อกอินเห็นรูปพื้นหลัง');
   const dimNow = await anonImg.locator('.login-stage').evaluate((e) => e.style.getPropertyValue('--dim'));
   check(dimNow === '0.5', 'ความเข้มฝ้า 50% ถูกใช้', dimNow);
+  const stageBox = await anonImg.locator('.login-stage').evaluate((e) => { const r = e.getBoundingClientRect(); return { pos: getComputedStyle(e).position, w: Math.round(r.width), h: Math.round(r.height), vw: innerWidth, vh: innerHeight }; });
+  check(stageBox.pos === 'fixed' && stageBox.w === stageBox.vw && stageBox.h === stageBox.vh, 'รูปพื้นหลังเต็มหน้าจอ', JSON.stringify(stageBox));
+  check(await anonImg.locator('.login-stage .card.login').isVisible(), 'การ์ดล็อกอินยังมองเห็นเหนือรูป');
   await shot(anonImg, '14-login-bg-image');
   // ลบรูป → ไฟล์ถูกลบจริง และกลับไปพื้นสีอ่อน
   await admin.getByRole('button', { name: 'ลบรูป' }).click();
