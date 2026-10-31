@@ -16,7 +16,7 @@ function roleSelect(value) {
 function codeInput() {
   return h('input', { inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', autocomplete: 'off', placeholder: 'เว้นว่างให้ระบบสุ่ม' });
 }
-const CODE_HINT = 'ตัวเลข 6 หลัก ห้ามซ้ำกับผู้อื่น ห้ามใช้วันเกิดหรือเลขเรียง (เช่น 123456) — แนะนำให้ระบบสุ่ม';
+const CODE_HINT = 'ตัวเลข 6 หลัก ห้ามซ้ำกับผู้อื่น ห้ามเลขซ้ำหรือเลขเรียง (เช่น 123456) ใช้วันเกิดได้ แต่เดาง่าย — แนะนำให้ระบบสุ่ม';
 
 async function showLoginCode(fullName, code) {
   await dialog({
