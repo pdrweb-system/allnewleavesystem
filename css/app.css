@@ -152,7 +152,7 @@ textarea { resize: vertical; }
 .preview-days strong { font-size: 1.5rem; color: var(--primary); }
 .cert-preview img { max-height: 220px; border-radius: 8px; border: 1px solid var(--line); margin-top: 8px; }
 .sig-box { border: 1px solid #c7d3d1; border-radius: 10px; background: #fff; overflow: hidden; }
-.sig-canvas { display: block; width: 100%; height: 200px; touch-action: none; background: repeating-linear-gradient(transparent 0 159px, #d8e1df 159px 160px); cursor: crosshair; }
+.sig-canvas { display: block; width: 100%; height: 200px; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; background: repeating-linear-gradient(transparent 0 159px, #d8e1df 159px 160px); cursor: crosshair; }
 .sig-tools { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-top: 1px solid var(--line); background: #fafcfb; }
 .sig-current { min-height: 40px; }
 .sig-current img { max-height: 120px; background: repeating-conic-gradient(#f3f3f3 0 25%, #fff 0 50%) 50% / 16px 16px; border: 1px solid var(--line); border-radius: 6px; }
