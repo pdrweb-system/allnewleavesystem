@@ -24,6 +24,15 @@ export function signatureField() {
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
 
+  // signature_pad วาดด้วย pointer event และพึ่ง CSS touch-action: none อย่างเดียวในการกันหน้าเลื่อน
+  // เบราว์เซอร์ในแอป (เช่น LINE) บางรุ่นไม่ทำตาม touch-action → หน้าเลื่อนขึ้นลงตามนิ้วและเส้นที่วาดถูกยกเลิก
+  // จึงยกเลิก touch event บน canvas เองอีกชั้น (pointer event ยังส่งมาตามปกติ ลายเซ็นจึงยังวาดได้)
+  const holdPage = (e) => {
+    if (e.cancelable) e.preventDefault();
+  };
+  canvas.addEventListener('touchstart', holdPage, { passive: false });
+  canvas.addEventListener('touchmove', holdPage, { passive: false });
+
   const clear = h('button', { type: 'button', class: 'btn ghost small', onclick: () => pad.clear() }, 'ล้างลายเซ็น');
   const el = h('div', { class: 'sig-box' }, canvas, h('div', { class: 'sig-tools' },
     h('small', { class: 'muted' }, 'ใช้นิ้วหรือปากกาเซ็นชื่อในกรอบ'), clear));
@@ -44,6 +53,8 @@ export function signatureField() {
     },
     destroy() {
       ro.disconnect();
+      canvas.removeEventListener('touchstart', holdPage);
+      canvas.removeEventListener('touchmove', holdPage);
       pad.off();
     },
   };

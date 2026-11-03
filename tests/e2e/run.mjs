@@ -362,6 +362,28 @@ try {
   const sizeText = await t1.locator('.cert-preview small').textContent();
   check(parseInt(sizeText, 10) <= 300, 'ย่อรูปใบรับรองแพทย์ไม่เกิน 300 KB', sizeText);
   await t1.locator('.sig-canvas').scrollIntoViewIfNeeded();
+  // เบราว์เซอร์ในแอป LINE บางรุ่นไม่ทำตาม touch-action: none → จำลองด้วยการปิด touch-action แล้วลากนิ้วจริง (CDP)
+  // หน้าต้องไม่เลื่อนตามนิ้ว และเส้นลายเซ็นต้องไม่ถูกยกเลิก
+  await t1.locator('.sig-canvas').evaluate((c) => c.style.setProperty('touch-action', 'auto', 'important')); // CSSOM ผ่าน CSP ได้
+  const tb = await t1.locator('.sig-canvas').boundingBox();
+  const scrollBefore = await t1.evaluate(() => window.scrollY);
+  const cdp = await t1.context().newCDPSession(t1);
+  // ลากนิ้วขึ้นแนวตั้ง: ท่าที่ทำให้หน้าเลื่อนชัดที่สุดถ้าไม่กัน (โค้ดเดิม: หน้าเลื่อน ~140px และเส้นถูกยกเลิก)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: tb.x + 60, y: tb.y + 170 }] });
+  for (let i = 1; i <= 30; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: tb.x + 60 + i * 3, y: tb.y + 170 - i * 5 }] });
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+  const scrollAfter = await t1.evaluate(() => window.scrollY);
+  check(scrollAfter === scrollBefore, 'ลากนิ้วเซ็นชื่อแล้วหน้าไม่เลื่อน แม้เบราว์เซอร์ไม่ทำตาม touch-action (เช่น LINE)', `${scrollBefore}→${scrollAfter}`);
+  check(await t1.evaluate(() => {
+    const c = document.querySelector('.sig-canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i]) return true;
+    return false;
+  }), 'ลากนิ้วแล้วมีเส้นลายเซ็นบนช่อง (เส้นไม่ถูกยกเลิก)');
+  await t1.locator('.sig-canvas').evaluate((c) => c.style.setProperty('touch-action', 'none'));
   const box = await t1.locator('.sig-canvas').boundingBox();
   await t1.mouse.move(box.x + 30, box.y + 120);
   await t1.mouse.down();
